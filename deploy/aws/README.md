@@ -28,7 +28,7 @@ The first create took about 5 minutes. Parameters:
 |---|---|---|
 | `DomainName` | `meritorder.dev` | The apex. `www.` in front of it redirects there. |
 | `HostedZoneId` | (required) | The Route 53 zone for the name. |
-| `GitHubSubjects` | `repo:Merit-Order@355502678/website@1458952464:ref:refs/heads/main,repo:Merit-Order/website:ref:refs/heads/main` | Who the deploy role trusts. The repo uses GitHub's immutable subjects, so it sends the first form; the plain form is there in case that is turned off. |
+| `GitHubSubjects` | `repo:Merit-Order@355502678/website@1459849084:ref:refs/heads/main,repo:Merit-Order/website:ref:refs/heads/main` | Who the deploy role trusts. The repo uses GitHub's immutable subjects, so it sends the first form; the plain form is there in case that is turned off. |
 | `GitHubOidcProviderArn` | (empty: the account's `token.actions.githubusercontent.com` provider) | The stack never creates an OIDC provider. The account's one belongs to the `meritorder-demo-site` stack, which created it: don't delete that stack without moving the provider first. |
 
 Outputs: `BucketName` (`meritorder-website-146879032513`), `DistributionId` (`E2OT5K7PVMFDFI`),
