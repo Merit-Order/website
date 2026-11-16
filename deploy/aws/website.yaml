@@ -16,7 +16,7 @@ Parameters:
       certificate is validated and the alias records are written there.
   GitHubSubjects:
     Type: CommaDelimitedList
-    Default: "repo:Merit-Order@355502678/website@1458952464:ref:refs/heads/main,repo:Merit-Order/website:ref:refs/heads/main"
+    Default: "repo:Merit-Order@355502678/website@1459849084:ref:refs/heads/main,repo:Merit-Order/website:ref:refs/heads/main"
     Description: >-
       The GitHub OIDC subjects the deploy role trusts: workflows on main of Merit-Order/website only. The repository
       uses GitHub's immutable subjects (gh api repos/Merit-Order/website/actions/oidc/customization/sub), so it sends
