@@ -1,0 +1,31 @@
+---
+// One button, light or dark. The choice is stored as Starlight stores it ("starlight-theme"), so the docs and the
+// rest of the site agree. With no choice stored, the system setting decides.
+---
+<button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch theme">
+  <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"></circle><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"></path></svg><span class="tt-label">Theme</span>
+</button>
+<script is:inline>
+(() => {
+  if (window.__moTheme) return; window.__moTheme = true;
+  const r = document.documentElement, KEY = 'starlight-theme';
+  const eff = () => r.dataset.theme === 'dark' || r.dataset.theme === 'light' ? r.dataset.theme
+    : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const sync = () => document.querySelectorAll('[data-theme-toggle]').forEach((b) => {
+    const t = eff();
+    b.setAttribute('aria-label', t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+    const l = b.querySelector('.tt-label'); if (l) l.textContent = t === 'dark' ? 'Light' : 'Dark';
+  });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-theme-toggle]'); if (!b) return;
+    const n = eff() === 'dark' ? 'light' : 'dark';
+    r.dataset.theme = n; try { localStorage.setItem(KEY, n); } catch {}
+    sync();
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
+    let stored = ''; try { stored = localStorage.getItem(KEY) || ''; } catch {}
+    if (!stored) { r.dataset.theme = e.matches ? 'dark' : 'light'; sync(); }
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sync); else sync();
+})();
+</script>

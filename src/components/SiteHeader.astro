@@ -1,0 +1,36 @@
+---
+import Brand from './Brand.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import GitHubIcon from './GitHubIcon.astro';
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+const links = [
+  { href: '/how-it-works/', label: 'How it works' },
+  { href: '/savings/', label: 'Savings' },
+  { href: '/compare/', label: 'Compare' },
+  { href: '/demo/', label: 'Demo' },
+  { href: '/docs/', label: 'Docs' },
+];
+const current = (href: string) => (path === href.replace(/\/$/, '') ? 'page' : undefined);
+---
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap">
+    <Brand />
+    <nav class="nav" aria-label="Main">
+      {links.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
+    </nav>
+    <div class="top-right">
+      <ThemeToggle />
+      <details class="menu">
+        <summary aria-label="Menu">Menu</summary>
+        <nav class="menu-panel" aria-label="Main, small screens">
+          <a href="/" aria-current={current('/')}>Home</a>
+          {links.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/changelog/">Changelog</a>
+        </nav>
+      </details>
+      <a class="gh" href="https://github.com/Merit-Order/meritorder"><GitHubIcon /><span>GitHub</span></a>
+    </div>
+  </div>
+</header>

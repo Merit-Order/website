@@ -1,0 +1,297 @@
+---
+import Base from '../layouts/Base.astro';
+import Quickstart from '../components/Quickstart.astro';
+import PreProd from '../components/PreProd.astro';
+import { data, caching, sticky, compression, batch, gpu, pricesDate, std, dev, ov, month, devMonth, HUMAN, NAMES, NOTES, perFinished, finishedOf, simDate, fmt } from '../lib/numbers.js';
+
+const s = fmt.sig;
+
+// The hero: cost per finished task in the routing simulator's standard population.
+const HERO = ['auto-expected-cost', 'auto-threshold', 'always-sonnet', 'always-opus'];
+const heroMax = Math.max(...HERO.map((k) => ov(std, k).cost_per_finished));
+const hw = (v: number) => `${Math.max(1.5, (v / heroMax) * 100).toFixed(1)}%`;
+const SHORT: Record<string, string> = { 'auto-expected-cost': 'auto, expected total cost', 'auto-threshold': 'auto, threshold', 'always-sonnet': 'Claude Sonnet 5.5, always', 'always-opus': 'Claude Opus 5.5, always' };
+const E = ov(std, 'auto-expected-cost'), SON = ov(std, 'always-sonnet'), OPU = ov(std, 'always-opus'), THR = ov(std, 'auto-threshold');
+const less = (a: number, b: number) => (a <= b ? `${Math.round((1 - a / b) * 100)}% less` : `${Math.round((a / b - 1) * 100)}% more`);
+
+// The merit order: list prices, each model's cheapest route, with its coding score. Prices only, no estimate.
+const SHOW = ['deepseek-v4.1-flash', 'claude-haiku', 'gpt-luna', 'kimi-k3.1', 'gpt-terra', 'gemini-carbon', 'claude-sonnet', 'claude-opus', 'claude-fable'];
+const line = SHOW.map((n) => data.models.find((m: any) => m.name === n)).filter(Boolean).map((m: any) => {
+  const best = m.routes.map((r: any) => r.price.input).sort((a: number, b: number) => a - b)[0];
+  return { name: m.name, label: m.label, score: m.score.coding, cost: best };
+}).sort((a, b) => a.cost - b.cost);
+const LEVEL = 4;
+const lineMax = Math.max(...line.map((x) => x.cost));
+const labelOf = (n: string) => data.models.find((m: any) => m.name === n)?.label ?? n;
+// Where the default's money went on coding-only work, by model.
+const spend = Object.entries(ov(dev, 'auto-expected-cost').spend_by_model as Record<string, number>).sort((a, b) => b[1] - a[1]);
+const spendTotal = spend.reduce((t, [, v]) => t + v, 0);
+
+// Ten developers: the simulator's coding-only population, scaled to a month.
+const TEAM = ['always-opus', 'always-sonnet', 'auto-threshold', 'auto-cost-per-success', 'auto-expected-cost', 'auto-expected-cost-cascade', 'oracle'];
+const rows = TEAM.map((k) => {
+  const o = ov(dev, k);
+  const iv = dev.intervals?.[k]?.cost_per_finished;
+  const fin = finishedOf(o, month.tasks);
+  return { k, name: NAMES[k], sub: NOTES[k], o, v: devMonth(k), lo: iv ? iv[0] * fin : null, hi: iv ? iv[1] * fin : null, people: devMonth(k, HUMAN) };
+});
+const scaleMax = Math.max(...rows.map((r) => r.hi ?? r.v)) * 1.04;
+const pct = (v: number) => `${((v / scaleMax) * 100).toFixed(2)}%`;
+const dO = ov(dev, 'always-opus'), dS = ov(dev, 'always-sonnet'), dE = ov(dev, 'auto-expected-cost'), dC = ov(dev, 'auto-cost-per-success'), dX = ov(dev, 'oracle'), dK = ov(dev, 'auto-expected-cost-cascade');
+const pop = dev.population.classes;
+const popTotal = Object.values(pop as Record<string, number>).reduce((t, v) => t + v, 0);
+---
+<Base title="Merit Order" description="A self-hosted LLM gateway. For each request it picks the cheapest model and backend that meets the work's quality bar, and records what it cost and why.">
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="pill"><b>v0.0.1</b>Pre-production, open source under AGPL-3.0</span>
+      <h1>The cheapest model that's <span>good enough</span>, for every request.</h1>
+      <p class="sub">Merit Order is a self-hosted LLM gateway. Your tools keep their own API. For each request it picks the cheapest model and backend that meets the work's quality bar, and records what it cost.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/docs/quickstart/">Get started</a>
+        <a class="btn btn-ghost" href="https://dev.meritorder.dev">Try the live demo</a>
+      </div>
+      <p class="hero-meta">Claude Code · Codex CLI · pi · OpenAI and Anthropic SDKs</p>
+    </div>
+
+    <figure class="trace" style="margin:0">
+      <div class="trace-head"><span class="method">SIM</span> {std.settings.tasks.toLocaleString('en-US')} tasks <span style="color:var(--muted)">routing simulator, every model call mocked</span></div>
+      <dl class="trace-steps" style="margin:0">
+        <div class="tstep"><dt>level</dt><dd>from the task's wording; tools only say it's coding</dd></div>
+        <div class="tstep"><dt>chance</dt><dd>each model's, from published benchmarks</dd></div>
+        <div class="tstep"><dt>pick</dt><dd>lowest expected cost to finish the task</dd></div>
+      </dl>
+      <ul class="routes" aria-label="Model spend per finished task in the routing simulator">
+        {HERO.map((k, i) => {
+          const o = ov(std, k);
+          return <li class:list={['route', { win: i === 0, base: k === 'always-sonnet' }]}><span class="nm">{SHORT[k]} <small>{fmt.pct1(o.success_rate)} finished</small></span><span class="track" aria-hidden="true"><i style={`width:${hw(o.cost_per_finished)}`}></i></span><span class="cost">{fmt.usd(o.cost_per_finished, 2)}</span></li>;
+        })}
+      </ul>
+      <figcaption class="trace-foot"><span>Model spend per finished task. Simulated, not measured on live traffic.</span><span>default <b>{less(E.cost_per_finished, SON.cost_per_finished)} than Sonnet</b></span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec" id="idea" aria-labelledby="idea-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">The idea</p><h2 id="idea-h">Line up the options by cost. Skip what isn't good enough. Take the first.</h2></div>
+      <p class="lead">Power grids dispatch generators in <strong>merit order</strong>: cheapest first, expensive peakers only when needed. Merit Order does the same with models. Your own GPUs, when steady load pays for them, are the cheap baseload. Provider APIs are always there for everything else.</p>
+    </div>
+    <figure class="mo-pic" style="margin:0">
+      <p class="eyebrow" style="margin-bottom:14px">The merit order for coding level 4 · input price per million tokens, each model's cheapest route</p>
+      <ol class="routes" aria-label="Models in order of input price, with their coding scores">
+        {line.map((x) => {
+          const below = x.score < LEVEL;
+          return (
+            <li class:list={['route', { below }]}>
+              <span class="nm">{x.label} <small>coding {x.score.toFixed(1)}{below ? ', below level 4' : ''}</small></span>
+              <span class="track" aria-hidden="true"><i style={`width:${Math.max(1.2, (x.cost / lineMax) * 100).toFixed(1)}%`}></i></span>
+              <span class="cost">{fmt.usd(x.cost, 2)}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <figcaption class="note" style="margin-top:16px">List prices of {pricesDate}. Taking the first model at or above the level is the threshold rule. The default goes further: it weighs each model by its chance of finishing the task and what a failure costs, so a cheaper model below the level, or a dearer one above it, can win. On the simulator's coding-only work, the default spent {spend.slice(0, 3).map(([m, v]) => `${Math.round((v / spendTotal) * 100)}% of its model money on ${labelOf(m)}`).join(', ')}. A GPU you already run would sit at the front of this line, priced at {Math.round(gpu.shadow_floor * 100)}% of its model's API price up to {Math.round(gpu.shadow_knee * 100)}% load.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec" id="saves" aria-labelledby="saves-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">How it saves money</p><h2 id="saves-h">Six mechanisms, each with a worked example.</h2></div>
+      <p class="lead">Routing's numbers come from the routing simulator; the others are list-price arithmetic or illustrations on the prices of {pricesDate}, and each says which. <a href="/savings/">Every mechanism in detail</a>.</p>
+    </div>
+    <div class="ledger">
+      <div class="lrow">
+        <div><h3>Routing by expected total cost</h3><span class="tag">routing simulator</span></div>
+        <div><p>Every model has a chance of finishing each level of work, from published benchmarks. <code>auto</code> picks the model with the lowest expected cost to finish the task: the try, plus the chance it fails times a person's time and the next attempt. Priced for the rest of the session, including rebuilding the prompt cache elsewhere.</p><p class="scen">{std.settings.tasks.toLocaleString('en-US')} simulated tasks · {fmt.pct1(E.success_rate)} against {fmt.pct1(SON.success_rate)} finished</p></div>
+        <div class="fig"><div class="row"><span>{fmt.usd(SON.cost_per_finished, 2)}</span><i class="b" style="width:100%"></i></div><div class="row after"><span>{fmt.usd(E.cost_per_finished, 2)}</span><i class="b" style={`width:${(E.cost_per_finished / SON.cost_per_finished * 100).toFixed(1)}%`}></i></div><p class="cap">Sonnet 5.5 for everything → auto, per finished task</p></div>
+      </div>
+      <div class="lrow">
+        <div><h3>Prompt caching</h3><span class="tag">list-price arithmetic</span></div>
+        <div><p>The gateway adds Claude's cache markers, sets OpenAI's <code>prompt_cache_key</code>, and never changes the early part of the prompt. On Claude it asks for a 1-hour cache from a session's second turn, for {s(caching.hourPremiumPerTurn)} more per turn.</p><p class="scen">100,000-token conversation · person steps away 20 minutes</p></div>
+        <div class="fig"><div class="row"><span>{s(caching.writeAgain)}</span><i class="b" style="width:100%"></i></div><div class="row after"><span>{s(caching.readAfterPause)}</span><i class="b" style={`width:${Math.max(1.5, caching.readAfterPause / caching.writeAgain * 100)}%`}></i></div><p class="cap">write again → read from cache</p></div>
+      </div>
+      <div class="lrow">
+        <div><h3>Sticky sessions</h3><span class="tag">list-price arithmetic</span></div>
+        <div><p>A session's cache lives on one provider. It moves only if that saves at least 10% plus $0.01 over the rest of the session, and within a task it keeps its model outright.</p><p class="scen">80,000-token Claude Opus 5.5 session, past its first turn</p></div>
+        <div class="fig"><div class="row"><span>{s(sticky.rebuild)}</span><i class="b" style="width:100%"></i></div><div class="row after"><span>{s(sticky.perTurn)}</span><i class="b" style={`width:${(sticky.perTurn / sticky.rebuild * 100).toFixed(1)}%`}></i></div><p class="cap">rebuild on a cold backend → a turn where it is</p></div>
+      </div>
+      <div class="lrow">
+        <div><h3>Tool-output compression</h3><span class="tag">illustration · opt-in</span></div>
+        <div><p>Deterministic rules strip terminal codes, collapse repeated lines, and keep the head and tail of anything over 24,000 characters. Same bytes every turn, so the cache stays valid. About {s(compression.arrive)} less on Sonnet 5.5 the turn it arrives.</p><p class="scen">A 100,000-character test log</p></div>
+        <div class="fig"><div class="row"><span>100k ch</span><i class="b" style="width:100%"></i></div><div class="row after"><span>24k ch</span><i class="b" style="width:24%"></i></div><p class="cap">roughly 25,000 fewer tokens</p></div>
+      </div>
+      <div class="lrow">
+        <div><h3>Batch prices</h3><span class="tag">illustration</span></div>
+        <div><p>OpenAI's Batch API and Anthropic's Message Batches are routed like live requests, among providers with a batch API and running GPUs with room. Ten providers' batch APIs are supported.</p><p class="scen">10,000 summaries · 5,000 tokens in, 500 out · Sonnet 5.5</p></div>
+        <div class="fig"><div class="row"><span>{fmt.usd(batch.live, 0)}</span><i class="b" style="width:100%"></i></div><div class="row after"><span>{fmt.usd(batch.half, 0)}</span><i class="b" style="width:50%"></i></div><p class="cap">live → batch price</p></div>
+      </div>
+      <div class="lrow">
+        <div><h3>Your GPUs at break-even</h3><span class="tag">shipped configuration</span></div>
+        <div><p>A replica starts when the work it could serve would cost more than its hourly price plus {Math.round(gpu.margin * 100)}% at API prices for 10 minutes, and drains when demand falls below break-even. While it runs, it is priced at {Math.round(gpu.shadow_floor * 100)}% of the API price up to {Math.round(gpu.shadow_knee * 100)}% load.</p><p class="scen">Qwen3 Coder Next on four H100s, {fmt.usd(gpu.hourly, 0)} an hour</p></div>
+        <div class="fig"><div class="row"><span>{fmt.usd(gpu.hourly, 0)}/h</span><i class="b" style={`width:${(100 / (1 + gpu.margin)).toFixed(1)}%`}></i></div><div class="row after"><span>{fmt.usd(gpu.startsAbove, 2)}/h</span><i class="b" style="width:100%"></i></div><p class="cap">GPU price → API-priced demand that starts it</p></div>
+      </div>
+    </div>
+    <div class="after-ledger"><span class="k">Recorded per request, by cause:</span><span class="tok">routing</span><span class="tok">prompt caching</span><span class="tok">self-hosting</span><span class="tok">batch discount</span><span class="tok">compression (rules)</span><span class="tok">compression (model)</span><span class="tok">response cache</span></div>
+    <p class="note">The seven causes are computed in a fixed order, each against the result of the previous one, so they add up to the total. Prompt caching the harness set up itself isn't counted as a Merit Order saving.</p>
+  </div>
+</section>
+
+<section class="sec" id="routes" aria-labelledby="routes-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">How it routes</p><h2 id="routes-h">A level for the work. A score for each model.</h2></div>
+      <p class="lead">Send <code>model: "auto"</code> and Merit Order chooses. Name a model and you always get it; Merit Order only picks the cheapest place to run it. <a href="/how-it-works/">Follow one request through</a>.</p>
+    </div>
+    <div class="cols">
+      <div class="col">
+        <svg viewBox="0 0 300 120" role="img" aria-label="Levels one to five; a request with tools is coding, at level 3; simple wording moves it to 2, hard wording up one or two, the hardest to 5.">
+          <g>
+            <rect class="dg-box" x="8" y="74" width="50" height="34" rx="5"/><text class="dg-m" x="33" y="95" text-anchor="middle">1</text>
+            <rect class="dg-box" x="66" y="74" width="50" height="34" rx="5"/><text class="dg-m" x="91" y="95" text-anchor="middle">2</text>
+            <rect class="dg-acc" x="124" y="74" width="50" height="34" rx="5"/><text class="dg-ma" x="149" y="95" text-anchor="middle">3</text>
+            <rect class="dg-box" x="182" y="74" width="50" height="34" rx="5"/><text class="dg-m" x="207" y="95" text-anchor="middle">4</text>
+            <rect class="dg-box" x="240" y="74" width="50" height="34" rx="5"/><text class="dg-m" x="265" y="95" text-anchor="middle">5</text>
+          </g>
+          <text class="dg-t" x="149" y="22" text-anchor="middle">tools → coding, at 3</text>
+          <path class="dg-line" d="M149 30 V68"/><path class="dg-arrow" d="M145 64 L149 71 L153 64Z"/>
+          <path class="dg-line" d="M160 54 C190 40, 200 52, 206 68" stroke-dasharray="3 3"/><path class="dg-arrow" d="M202 64 L207 71 L210 63Z"/>
+          <text class="dg-m" x="174" y="44">hard wording +1</text>
+          <path class="dg-line" d="M138 54 C108 40, 98 52, 92 68" stroke-dasharray="3 3"/><path class="dg-arrow" d="M88 63 L91 71 L96 64Z"/>
+          <text class="dg-m" x="8" y="44">"write tests" → 2</text>
+        </svg>
+        <h3>Levels from the task's wording</h3>
+        <p>Tools say the work is coding; the task's wording sets the level, with no model call. Claude Code and Codex send dozens of tools on every request, so a tool count can't tell a typo from a redesign. Length never raises a level. The word lists are settings, and every request records why it got its level.</p>
+      </div>
+      <div class="col">
+        <svg viewBox="0 0 300 120" role="img" aria-label={`Simulated cost per finished task in total, counting failed attempts: threshold ${fmt.usd(THR.total_per_finished_with_human, 2)}, expected total cost ${fmt.usd(E.total_per_finished_with_human, 2)}.`}>
+          <text class="dg-m" x="8" y="18">per finished task, counting failed attempts</text>
+          <text class="dg-t" x="8" y="48">threshold, the old default</text>
+          <rect class="dg-bar" x="8" y="56" width="272" height="10" rx="2"/><text class="dg-m" x="280" y="48" text-anchor="end">{fmt.usd(THR.total_per_finished_with_human, 2)}</text>
+          <text class="dg-t" x="8" y="92">expected total cost</text>
+          <rect class="dg-bar-acc" x="8" y="100" width={(272 * E.total_per_finished_with_human / THR.total_per_finished_with_human).toFixed(0)} height="10" rx="2"/><text class="dg-ma" x="280" y="92" text-anchor="end">{fmt.usd(E.total_per_finished_with_human, 2)}</text>
+        </svg>
+        <h3>Expected total cost, the default</h3>
+        <p>A failed try is still paid for, and a person has to notice it and ask again. So <code>auto</code> compares <code>try + (1 − chance) × (person's time + next attempt)</code> for every model that may serve the task. Cost per success and the old threshold remain as settings.</p>
+      </div>
+      <div class="col">
+        <svg viewBox="0 0 300 120" role="img" aria-label="Outcome signals feed the learned router, which runs in shadow mode first and routes only when at least 80 percent sure.">
+          <rect class="dg-box" x="8" y="40" width="80" height="40" rx="6"/><text class="dg-t" x="48" y="64" text-anchor="middle">outcomes</text>
+          <rect class="dg-box" x="110" y="40" width="80" height="40" rx="6"/><text class="dg-t" x="150" y="64" text-anchor="middle">shadow</text>
+          <rect class="dg-acc" x="212" y="40" width="80" height="40" rx="6"/><text class="dg-t" x="252" y="64" text-anchor="middle">route</text>
+          <path class="dg-line" d="M88 60 H104"/><path class="dg-arrow" d="M102 56 L109 60 L102 64Z"/>
+          <path class="dg-line" d="M190 60 H206"/><path class="dg-arrow" d="M204 56 L211 60 L204 64Z"/>
+          <text class="dg-m" x="150" y="100" text-anchor="middle">records only</text>
+          <text class="dg-ma" x="252" y="100" text-anchor="middle">≥ 80% sure</text>
+          <text class="dg-m" x="48" y="100" text-anchor="middle">tests, builds</text>
+          <text class="dg-m" x="8" y="22">learned router · opt-in</text>
+        </svg>
+        <h3>Learns from your own traffic</h3>
+        <p>Outcome signals, such as a resent request, a raised floor, failing tests or a fix loop, train a router that corrects the rules' level. It proves itself in shadow mode first. Opt-in exploration tries about 4% of new tasks one level up or down.</p>
+      </div>
+    </div>
+    <p class="note">Model scores come from Epoch AI's benchmark data by default, refreshed daily, against a fixed bar. Run <code>meritorder eval</code> to score models on your own tasks instead.</p>
+  </div>
+</section>
+
+<section class="sec" id="pay" aria-labelledby="pay-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">What you'd pay vs. what you pay</p><h2 id="pay-h">Ten developers on Claude Code and Codex, simulated.</h2></div>
+      <p class="lead">A month of model spend for {month.developers} developers, {month.tasksPerDay} tasks a day each, {month.workdays} working days: {month.tasks.toLocaleString('en-US')} coding tasks, scaled from the routing simulator's {dev.settings.tasks.toLocaleString('en-US')}-task coding-only run. Every model call is mocked; this is not yet measured on live traffic. <a href="/savings/#simulated">The full results</a>, or <a href="/savings/#calculator">scale them to your team</a>.</p>
+    </div>
+
+    <div class="cmpbars" role="list" aria-label="Simulated monthly model spend by strategy">
+      {rows.map((r) => (
+        <div class:list={['cb', { mo: r.k === 'auto-expected-cost' }]} role="listitem">
+          <div class="nm">{r.name}<small>{fmt.pct1(r.o.success_rate)} of tasks finished{r.sub ? `; ${r.sub}` : ''}</small></div>
+          <div class="track" aria-hidden="true">
+            {r.lo != null && <span class="rng" style={`left:${pct(r.lo)};width:calc(${pct(r.hi)} - ${pct(r.lo)})`}></span>}
+            <span class="pt" style={`left:calc(${pct(r.v)} - 1px)`}></span>
+          </div>
+          <div class="v">{fmt.usd0(r.v)}<small>{fmt.usd0(r.people)} total</small></div>
+        </div>
+      ))}
+    </div>
+    <p class="note">The mark is the simulated month; the band is its 90% interval (a paired bootstrap over the tasks). The total counts failed attempts too: it adds ${HUMAN} of someone's time for each one (noticing it, asking again, waiting, cleaning up).</p>
+
+    <div class="two pay-two" style="margin-top:36px">
+      <div class="prose">
+        <h3 style="margin-top:0">What the numbers say</h3>
+        <p><strong>Against Claude Opus 5.5 for everything:</strong> {fmt.usd0(devMonth('auto-expected-cost'))} against {fmt.usd0(devMonth('always-opus'))} of model spend, {less(dE.cost, dO.cost)}, with {fmt.pct1(dE.success_rate)} of tasks finished against {fmt.pct1(dO.success_rate)}.</p>
+        <p><strong>Against Claude Sonnet 5.5 for everything</strong> (or a fixed-model proxy set to it, which sends the same tokens): {fmt.usd0(devMonth('auto-expected-cost'))} against {fmt.usd0(devMonth('always-sonnet'))}, {less(dE.cost, dS.cost)}, at {fmt.pct1(dE.success_rate)} against {fmt.pct1(dS.success_rate)}. In total, counting failed attempts: {fmt.usd0(devMonth('auto-expected-cost', HUMAN))} against {fmt.usd0(devMonth('always-sonnet', HUMAN))}.</p>
+        <p><strong>Where it doesn't win.</strong> On coding-only work, cost per success spends less on models ({fmt.usd0(devMonth('auto-cost-per-success'))}) and comes out about even once failed attempts are counted: {fmt.usd(perFinished(dC, HUMAN), 2)} against {fmt.usd(perFinished(dE, HUMAN), 2)} per finished task. The opt-in escalation inside a task finished slightly more ({fmt.pct1(dK.success_rate)}) but cost more ({fmt.usd0(devMonth('auto-expected-cost-cascade'))}). The oracle, which knows in advance which cheapest model would succeed, needs {fmt.usd0(devMonth('oracle'))}: no router gets there, and the gap is how much better routing could still do.</p>
+        <p><strong>A hosted auto-router</strong> isn't simulated: its decision model isn't public, so we can't say what it would pick, and its platform fee would come on top.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="dt">
+          <caption class="sr-only">Assumptions behind the simulated month</caption>
+          <thead><tr><th>Assumption</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Developers, tasks a day, working days</td><td>{month.developers}, {month.tasksPerDay}, {month.workdays}</td></tr>
+            <tr><td>Clients<small>who sends the coding tasks</small></td><td>Claude Code 75%, a small agent such as Codex 15%, chat with code 10%</td></tr>
+            <tr><td>Task difficulty<small>SWE-bench Verified's time-to-fix mix</small></td><td>{['coding-easy', 'coding-medium', 'coding-hard', 'coding-very-hard'].map((c) => `${c.replace('coding-', '')} ${Math.round((pop[c] / popTotal) * 100)}%`).join(', ')}</td></tr>
+            <tr><td>Outcomes<small>no model is called</small></td><td>drawn from each model's published benchmark ability against each task's difficulty</td></tr>
+            <tr><td>Attempts per task</td><td>up to {dev.settings.max_attempts}</td></tr>
+            <tr><td>Later turns after a 5 to 60 minute pause</td><td>{fmt.pct(dev.settings.pause_share)}</td></tr>
+            <tr><td>Price per failed attempt<small>someone's time; adjustable in the calculator</small></td><td>${HUMAN}</td></tr>
+            <tr><td>Prices and scores</td><td>the main repo's price list of {pricesDate}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">From <code>scripts/routing_sim.py</code> in the main repository, run on {simDate}. Not counted: compression, batch, the response cache and GPUs, and the cost of running the gateway. Claude Code on non-Claude models works through translation, but Anthropic doesn't support it, so expect rough edges.</p>
+
+    <div class="well">
+      <div class="col"><h3>Direct, one model</h3><p>Nothing to run. Claude Code on Claude is what Anthropic supports. Predictable quality, if the model is strong enough for your hardest work.</p></div>
+      <div class="col"><h3>Fixed-model proxy</h3><p>One place for keys, budgets and logs. LiteLLM covers over 100 providers and is used in production by many organizations.</p></div>
+      <div class="col"><h3>Hosted auto-router</h3><p>Nothing to deploy, very large scale, hundreds of models. OpenRouter's Auto Router weighs the cost of losing a prompt cache and picks reasoning effort per request.</p></div>
+      <div class="col well-mo"><h3>Merit Order</h3><p>Runs in your network on your provider accounts. Budgets checked before a request is sent. Savings split by cause and checked against bills. Your own GPUs at break-even.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="works" aria-labelledby="works-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Works with</p><h2 id="works-h">Point your tools at it. Nothing else changes.</h2></div>
+      <p class="lead">Merit Order speaks OpenAI Chat Completions, OpenAI Responses (HTTP and WebSocket) and Anthropic Messages. When a tool and the chosen model speak different formats, it translates requests, replies and streams both ways.</p>
+    </div>
+    <div class="logos">
+      <div class="logo"><b>Claude Code</b><code>meritorder setup claude-code</code></div>
+      <div class="logo"><b>Codex CLI</b><code>meritorder setup codex</code></div>
+      <div class="logo"><b>pi</b><code>meritorder setup pi</code></div>
+      <div class="logo"><b>OpenAI SDKs</b><code>base_url=&lt;gateway&gt;/v1</code></div>
+      <div class="logo"><b>Anthropic SDKs</b><code>ANTHROPIC_BASE_URL</code></div>
+    </div>
+    <div class="prov"><span class="k">Providers</span><span class="tok">Anthropic</span><span class="tok">Amazon Bedrock</span><span class="tok">Microsoft Foundry</span><span class="tok">Vertex AI</span><span class="tok">Gemini API</span><span class="tok">Azure OpenAI</span><span class="tok">OpenAI</span><span class="tok">xAI</span><span class="tok">OpenRouter</span><span class="tok">DeepSeek</span><span class="tok">Mistral</span><span class="tok">Moonshot</span><span class="tok">Z.ai</span><span class="tok">MiniMax</span><span class="tok">vLLM, SGLang</span><span class="tok">your GPUs</span></div>
+  </div>
+</section>
+
+<section class="sec" id="trust" aria-labelledby="trust-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Control and trust</p><h2 id="trust-h">Your network, your keys, your records.</h2></div>
+      <p class="lead">Merit Order is software you run, not a service you send prompts to.</p>
+    </div>
+    <div class="cols four">
+      <div class="col"><h3>Self-hosted</h3><p>Docker Compose or a Helm chart. Your keys, your network, your Postgres and Redis. Signed multi-arch images when a version is tagged.</p></div>
+      <div class="col"><h3>AGPL-3.0, every line</h3><p>Read, change and run all of it. If you change it and offer it to others over a network, you share your changes under the same license.</p></div>
+      <div class="col"><h3>No content stored by default</h3><p>The ledger and session table hold metadata: hashes, timestamps, token counts, costs. The response cache, stored Responses and batch files are opt-in or explicit, and sealed.</p></div>
+      <div class="col"><h3>Every decision recorded</h3><p>Each request keeps its routing reason, for example <code>coding: 32 tools; simple task wording (write (unit )?tests): level 2</code>, and the chances and costs it compared.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="start" aria-labelledby="qs-h">
+  <div class="wrap">
+    <PreProd />
+    <Quickstart />
+  </div>
+</section>
+</Base>

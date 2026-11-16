@@ -1,0 +1,8 @@
+---
+interface Props { size?: number; href?: string; label?: boolean }
+const { size = 22, href = '/', label = true } = Astro.props;
+---
+<a class="brand" href={href} aria-label={label ? undefined : 'Merit Order home'}>
+  <svg width={size} height={size} viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="5" fill="var(--fg)"></rect><path d="M6 15.5h2.5v-3H6zM9.75 15.5h2.5v-6h-2.5zM13.5 15.5H16v-9h-2.5z" fill="var(--bg)"></path></svg>
+  {label && <span>Merit Order</span>}
+</a>

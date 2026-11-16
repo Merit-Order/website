@@ -1,0 +1,65 @@
+<div class="qs">
+  <div class="titles">
+    <p class="eyebrow">Quickstart</p>
+    <h2 id="qs-h">No keys needed to try it.</h2>
+    <p>Without provider keys, requests go to built-in mock backends, and the reply says <code>[mock-small] You said: hello</code>.</p>
+    <ol class="steps">
+      <li><span>Needs Python 3.12+ and uv, or Docker.</span></li>
+      <li><span>Set <code>MERITORDER_DEV_KEY</code> in <code>.env</code>, plus any provider keys you have.</span></li>
+      <li><span>Run <code>meritorder check</code> to see which backends and models are live.</span></li>
+    </ol>
+    <p style="margin-top:18px"><a class="btn btn-ghost" href="/docs/quickstart/">Read the full quickstart</a></p>
+  </div>
+  <div class="term">
+    <div class="term-head">
+      <div role="tablist" aria-label="Install method" style="display:flex;gap:4px">
+      <button class="tab" role="tab" id="tab-uv" aria-selected="true" aria-controls="code-uv" type="button">uv</button>
+      <button class="tab" role="tab" id="tab-docker" aria-selected="false" aria-controls="code-docker" type="button" tabindex="-1">Docker Compose</button>
+      </div>
+      <button class="copy" type="button" data-copy-active>Copy</button>
+    </div>
+<pre id="code-uv" role="tabpanel" aria-labelledby="tab-uv" tabindex="0"><code><span class="k">git</span> clone https://github.com/Merit-Order/meritorder && <span class="k">cd</span> meritorder
+<span class="k">uv</span> sync
+<span class="k">cp</span> .env.example .env      <span class="c"># set MERITORDER_DEV_KEY</span>
+<span class="k">uv</span> run meritorder check   <span class="c"># which backends are live</span>
+<span class="k">uv</span> run meritorder serve   <span class="c"># http://localhost:8080</span>
+
+<span class="c"># in a second terminal</span>
+<span class="k">curl</span> localhost:8080/v1/chat/completions \
+  -H <span class="s">"authorization: Bearer $MERITORDER_DEV_KEY"</span> \
+  -H <span class="s">"content-type: application/json"</span> \
+  -d <span class="s">{`'{"model": "auto", "messages": [{"role": "user", "content": "hello"}]}'`}</span></code></pre>
+<pre id="code-docker" role="tabpanel" aria-labelledby="tab-docker" tabindex="0" hidden><code><span class="k">cp</span> .env.example .env      <span class="c"># provider keys optional</span>
+<span class="k">docker compose</span> up -d      <span class="c"># gateway, worker, Postgres, Redis</span>
+<span class="k">docker compose</span> exec gateway meritorder keys create \
+  --user you@example.com --role admin
+
+<span class="c"># then open http://localhost:8080/ui/ and sign in with that key</span>
+<span class="k">meritorder</span> setup claude-code</code></pre>
+  </div>
+</div>
+<script>
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('.term .tab'));
+  const select = (t: HTMLButtonElement) => tabs.forEach((o) => {
+    const on = o === t;
+    o.setAttribute('aria-selected', on ? 'true' : 'false');
+    o.tabIndex = on ? 0 : -1;
+    document.getElementById(o.getAttribute('aria-controls')!)!.hidden = !on;
+  });
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => select(t));
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      select(n); n.focus();
+    });
+  });
+  const c = document.querySelector<HTMLButtonElement>('[data-copy-active]');
+  c?.addEventListener('click', () => {
+    const sel = tabs.find((t) => t.getAttribute('aria-selected') === 'true')!;
+    const pre = document.getElementById(sel.getAttribute('aria-controls')!)!;
+    const done = () => { c.textContent = 'Copied'; setTimeout(() => { c.textContent = 'Copy'; }, 1400); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection()!; s.removeAllRanges(); s.addRange(r); c.textContent = 'Selected'; };
+    try { navigator.clipboard.writeText(pre.innerText).then(done, fallback); } catch { fallback(); }
+  });
+</script>

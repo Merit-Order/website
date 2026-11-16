@@ -1,0 +1,1972 @@
+# 09 — Decisions
+
+What we decided, why, and what would make us revisit it. Newest decisions go at the bottom.
+
+| # | Decision | Status |
+|---|---|---|
+| 1 | Python for the core | Accepted |
+| 2 | Our own backend adapters; no LiteLLM dependency | Accepted |
+| 3 | No Envoy | Accepted |
+| 4 | Docker Compose and Kubernetes both supported | Accepted |
+| 5 | The harness owns the conversation; no content stored | Accepted; the Responses API's opt-in stored mode is the exception (51) |
+| 6 | Route by marginal cost, including cache rebuild cost | Accepted |
+| 7 | SkyPilot for GPUs, provisioning as a plugin | Accepted; plain clusters instead of SkyServe since 56 |
+| 8 | Generic OIDC, Entra first | Accepted |
+| 9 | Postgres and Redis are the only state | Accepted; ClickHouse may hold a copy of the ledger (47), and a bucket may hold batch uploads (49) |
+| 10 | Continuous batching only; async batch APIs out of scope | Superseded by 45: provider batch APIs are built |
+| 11 | AGPL-3.0-only license | Accepted; the reasoning is in 55 |
+| 12 | Reporting UI in React/TypeScript | Accepted |
+| 13 | Opt-in response cache may store responses | Accepted |
+| 14 | Open-weight catalog with prices from OpenRouter | Accepted |
+| 15 | GPU scaling on addressable demand at API prices | Accepted |
+| 16 | Deterministic, rule-based compression first | Accepted |
+| 17 | Configuration versions in Postgres, YAML as the starting point | Accepted |
+| 18 | Control panel in Mantine, monitoring first | Accepted |
+| 19 | The IdP owns identity; Merit Order owns teams; user records decide team and role | Accepted |
+| 20 | Quality scores are measured with graded tasks; judges only where nothing else works | Superseded by 28 as the default source of scores |
+| 21 | Every cost is visible next to the switch that controls it | Accepted |
+| 22 | GPU prices come from SkyPilot's catalog; SkyPilot runs in its own environment | Accepted; GPU costs checked against the bills by 40 |
+| 23 | A named model is never silently swapped; substitution is opt-in and never to a weaker model | Accepted |
+| 24 | Refusals are retried on another model only for `auto` | Accepted |
+| 25 | Every process follows the stored configuration | Accepted |
+| 26 | No request queue in the gateway; a full GPU queues only as a last resort | Accepted |
+| 27 | Prices are live, never typed in | Accepted |
+| 28 | Quality scores come from published benchmarks, anchored to the best model | Accepted; a fixed bar by default since 58 |
+| 29 | Routing state per conversation, not per session id; context limits move work instead of failing it | Accepted |
+| 30 | Measured scores on the same scale as published ones, from hard tasks only | Accepted |
+| 31 | GPU break-even sizes each model and prices it through SkyPilot | Accepted |
+| 32 | Break-even weights: real file sizes, quantizing, and the machine that pays | Accepted |
+| 33 | Grok, Mistral's own API, DeepSeek V4.1 Flash 1017, and scores for models Epoch barely covers | Accepted |
+| 34 | Evals try failed requests again, and reruns fill in what a run skipped | Accepted |
+| 35 | A codebase suite: real changes from this repository's history, graded by their own tests | Accepted; the repository is now public (see the note) |
+| 36 | Gemini's native API behind Chat Completions; thought signatures ride on the tool calls | Accepted |
+| 37 | Google sign-in: a Workspace domain is required, and email lists stand in for groups | Accepted; Google Groups added by 48 |
+| 38 | Levels come from the work; a long context only rules out models too small for it | Accepted |
+| 39 | The gateway picks the GPU replica; eviction from vLLM's KV events, else estimated from its metrics | Accepted; replicas are plain SkyPilot clusters since 56 |
+| 40 | Costs are checked against providers' own cost APIs, daily, by model | Accepted; batch tier matched since 45, exports added by 50 |
+| 41 | Token counts: an estimate by content, calibrated per model from what replies report | Accepted |
+| 42 | GPUs on your own Kubernetes cluster: KServe or llm-d, over plain HTTP, priced per node type | Accepted |
+| 43 | Route by expected cost per success, opt-in, with chances read from the scores | Accepted |
+| 44 | A learned router that corrects the rules' level from outcomes, opt-in, proven in shadow mode first | Accepted |
+| 45 | Provider batch APIs: each request routed at batch prices, results read back from the providers | Accepted; extended by 49 |
+| 46 | Model-based compression: our own LLMLingua-2 service, each result decided once, cuts stored by content hash | Accepted |
+| 47 | ClickHouse holds a copy of the ledger for large reports; Postgres stays the record | Accepted |
+| 48 | Google Groups from the Cloud Identity API, as a service account with the Groups Reader role | Accepted |
+| 49 | Batch work fills running GPUs' headroom; batch demand never starts one; more providers' batch APIs | Accepted |
+| 50 | AWS's CUR 2.0 and Azure's cost exports as bill sources, read by manifest; one source per bill | Accepted |
+| 51 | The Responses API's stored mode: opt-in per team, the gateway holds the conversation, sealed, for a retention the operator sets | Accepted; chaining over WebSocket added by 54 |
+| 52 | Judged labels for the learned router: sampled in flight, replayed in the background, metered as the team's own | Accepted |
+| 53 | Claude's 1-hour cache from a session's second turn, priced at its own write price | Accepted; its first-turn estimate revisited by 60 |
+| 54 | The Responses API over WebSocket: chained on the connection from memory, HTTP upstream; compaction written by the gateway | Accepted |
+| 55 | AGPL-3.0-only license: the reasoning | Accepted |
+| 56 | SkyPilot as plain clusters, one per replica, each behind a keyed gate with a dead-man lease; no SkyServe | Accepted |
+| 57 | Codex CLI's tools on every backend: custom tools as one-string functions, hosted tools left out where there's no equivalent | Accepted |
+| 58 | Quality scores on a fixed bar: a 5 is a fixed chance on the reference, not the best model you have | Accepted |
+| 59 | Your own traffic as the routing benchmark: exploration opt-in per team, coding outcomes from tool results, a two-sided report | Accepted |
+| 60 | The 1-hour cache credited with the pauses it bridges, from each team's observed pauses | Accepted; revisits 53 |
+| 61 | Tools say the work is coding; the task's wording sets the level | Accepted |
+| 62 | Route by expected total cost to finish the task, a person's time included, by default; escalation inside a task opt-in | Accepted; extends 43, 44, 59; the default since the routing simulator; amended by 67 |
+| 63 | Cold starts timed per phase, paid back in the break-even; the weights cache an opt-in volume that only an admin deletes | Accepted |
+| 64 | GPUs counted at what they cost to run; savings after GPU cost; one budget total for every surface | Accepted |
+| 65 | A person's record lowers a key's role, never raises it; a saved configuration reads only allowed secrets | Accepted |
+| 66 | An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence | Accepted |
+| 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
+
+**Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
+opt-in per team, and tested only against mocks.
+
+## 1. Python for the core
+
+**Why:** The team prefers it, the ML and inference ecosystem (SkyPilot, vLLM, classifiers,
+compression) is Python, and gateway overhead is a few milliseconds against model latency measured
+in seconds. We scale by running more gateway copies.
+
+**Revisit if:** a real deployment hits gateway CPU limits that more replicas can't fix.
+
+## 2. Our own backend adapters; no LiteLLM dependency
+
+**Why:**
+- LiteLLM converts everything to the OpenAI format internally. That's lossy for `cache_control`,
+  thinking signatures, and other provider fields, and prompt caching is our biggest savings lever.
+- It has had supply-chain incidents, a large dependency tree, and SSO in a commercially licensed
+  directory.
+- The rest of what it offers (keys, budgets, spend tracking, routing, UI) we'd replace anyway,
+  because our ledger, router, and reporting work differently.
+- Almost every backend speaks the Anthropic or OpenAI format, so pass-through plus one pair of
+  translators covers them in a few thousand lines we fully control.
+
+**What we still take:** LiteLLM's MIT-licensed price list, fetched as data by the worker (never
+imported as code) for direct provider APIs (see #27), and its code as a reference for provider quirks. Anyone needing a niche provider can run LiteLLM themselves
+as an OpenAI-compatible backend.
+
+**Revisit if:** keeping our adapters current with provider API changes becomes a significant
+ongoing burden.
+
+## 3. No Envoy
+
+**Why:** Envoy AI Gateway is strong as a proxy layer, but all of our product logic (routing,
+shaping, sessions, budgets, ledger) would still be Python, called by Envoy over gRPC on every
+request. That adds a second system to operate and debug, assumes Kubernetes, narrows the
+contributor pool, and solves a performance problem we don't have. Merit Order runs behind whatever
+load balancer or ingress an organization already uses.
+
+**Revisit if:** large deployments ask for it. The routing and shaping code could be packaged as an
+Envoy external-processing service without being rewritten. Separately, an optional plugin could use
+Kubernetes inference-routing tools (llm-d) inside a customer's own GPU cluster.
+
+**Changed:** llm-d is built as one of two ways to run GPUs on your own Kubernetes cluster (decision 42), as a
+provisioner, not as an Envoy plugin.
+
+## 4. Docker Compose and Kubernetes both supported
+
+**Why:** Compose gives the clone-and-run experience an open-source project needs; Kubernetes is
+what enterprises at our target spend run in production. Same images, no Kubernetes-specific code in
+the app. Details in [07, Deployment](07-deployment.md).
+
+## 5. The harness owns the conversation; no content stored
+
+**Why:** Harnesses already resend history and compact it. Storing conversations would make the
+proxy a retention, eDiscovery, and breach liability. The gateway stores routing metadata (hashes,
+timestamps, backends) only. The rules compress cache-safely by being deterministic (the same tool output
+always compresses the same way); model-based compression (decision 46) stores where it cut each result, never
+the text.
+
+**Revisited by 51:** the OpenAI Responses API's stored mode is built, opt-in per team with a retention the operator
+must set. It's the one place the gateway holds conversation content (the opt-in response cache, decision 13, holds
+answers).
+
+## 6. Route by marginal cost, including cache rebuild cost
+
+**Why:** A running GPU's spare capacity is already paid for, so it's nearly free, even for a better
+model than the task needs. Moving a session re-pays for its whole context, so the router counts that
+before moving. Details in [03, Routing](03-routing.md).
+
+## 7. SkyPilot for GPUs, provisioning as a plugin
+
+**Why:** SkyPilot handles multi-cloud GPUs, spot instances, and replica scaling (SkyServe), and can
+target Kubernetes clusters. Our controller decides *whether* to run a model; SkyPilot handles *how*.
+A Kubernetes-native option (llm-d or KServe) can be another plugin later (built: decision 42).
+
+## 8. Generic OIDC, Entra first
+
+**Why:** Entra is the first customer need; Google and others are configuration on the same code
+path. Harnesses get short-lived virtual keys via a device-code login. Google turned out to need a few
+provider-specific checks (decision 37).
+
+## 9. Postgres and Redis are the only state
+
+**Why:** Both are available as managed services everywhere and are easy to run in Compose.
+For very large deployments, ClickHouse can hold a copy of the ledger that the big reports read (decision 47). It's
+optional and derived: Postgres and Redis are still the only state anything depends on.
+
+**Changed:** batch uploads and GPU batch work can be held in the operator's bucket (`batches.storage.bucket`: S3,
+Cloud Storage or Azure Blob Storage) instead of Postgres (decision 49). Bedrock and Vertex AI batch jobs also read
+their input from a bucket the operator gives (decision 45).
+
+## 10. Continuous batching only; async batch APIs out of scope
+
+**Why:** The product is for day-to-day interactive use. vLLM/SGLang batch concurrent requests on
+their own. Provider batch APIs (about 50% off for work that can wait hours) may come later.
+
+**Superseded** by decision 45, which builds the provider batch APIs; continuous batching on GPUs is unchanged.
+
+## 11. AGPL-3.0-only license
+
+Merit Order is licensed under the GNU Affero General Public License version 3 only (AGPL-3.0-only). The reasoning,
+and what it means for running and changing it, is in decision 55.
+
+## 12. Reporting UI in React/TypeScript
+
+**Why:** Interactive filters and charts are much easier to build well, and the UI only talks to the
+gateway's HTTP APIs, so it stays replaceable. The rest of the project remains Python. Decision 18
+grew it into the full console, which uses the reports, console and admin APIs (`/v1/reports`,
+`/v1/console`, `/v1/admin`).
+
+**Alternative considered:** server-rendered pages with htmx (all-Python, clunkier interactivity).
+
+## 13. Opt-in response cache may store responses
+
+**Why:** Exact-match caching saves real money for chatbots, RAG, and evals. It can't work without
+keeping the response, so it's the one exception to decision 5: off by default, enabled per team or
+per request, scoped to a team or user, and expired by TTL (Redis).
+
+## 14. Open-weight catalog with prices from OpenRouter
+
+**Why:** There are dozens of useful open-weight models (DeepSeek, GLM, Kimi, Qwen, MiniMax, MiMo,
+Mistral, Gemma, Nemotron, Muse, gpt-oss) and their prices change often. `config/models-open.yaml`
+lists them with their Hugging Face IDs (needed for self-hosting); the worker keeps
+their prices, context windows and output limits current from OpenRouter's public catalog (#27). A route with
+no known price is never chosen by `auto`, so a missing price can't look free. OpenRouter is one
+backend among many, not the system: it adds a fee, sends prompts through another company, and
+doesn't count toward cloud commitments.
+
+## 15. GPU scaling on addressable demand at API prices
+
+**Why:** Counting only traffic already served by a model means a stopped model never looks worth
+starting. The controller counts what all traffic the model *could* serve costs at API-equivalent
+prices, excluding free upgrades. That number doesn't fall when GPUs take over the traffic, so it
+doesn't flap. Two self-hosted models that address the same traffic are each credited with it; the
+router then splits the traffic. Revisit if that over-provisions in practice.
+
+## 16. Deterministic, rule-based compression first
+
+**Why:** Compression must give identical output every turn or it breaks provider caching (and, on
+recent Claude models, edited history can invalidate thinking). Rules (strip ANSI codes, collapse
+repeated lines, keep head and tail of huge outputs) are deterministic, need no stored state, and add
+no ML dependency. A model-based compressor (LLMLingua-2) can come later behind a content-hash cache: decision 46.
+
+## 17. Configuration versions in Postgres, YAML as the starting point
+
+**Why:** Containers mount config read-only, and a fleet of gateways needs one source of truth. Saving
+from the console validates the document, stores it as a new version (who, when, why), and every
+gateway hot-reloads it within seconds; in-flight requests finish on the objects they started with.
+Restore is one click. The YAML file is used until the first version is saved, and stays the format
+for import, export, and GitOps. Secrets never enter the database: literal keys are refused and must
+stay `${ENV}` references.
+
+## 18. Control panel in Mantine, monitoring first
+
+**Why:** Anyone running a company's LLM traffic through Merit Order will watch it far more than
+they reconfigure it. The console opens on a live Dispatch view (the merit-order stack from real
+traffic, a live request feed, backend health, the GPU fleet, and what needs attention), with
+configuration one page among several. Mantine gives a complete admin component set with few
+dependencies; charts stay hand-written SVG.
+
+The look (November 2026, "Clean technical"): Geist and Geist Mono, bundled with the console so its strict CSP and
+offline use hold; one indigo accent, used only for the current place, the primary action and the series that matters;
+every other series a muted grey; green, amber and red only for status, always with an icon and a word, so the state
+reads without color. Both schemes are designed; the console opens dark. The tokens live in `ui/src/theme.ts` (the
+Mantine theme and its CSS variables), so charts and custom pieces read one set of colors.
+
+## 19. The IdP owns identity; Merit Order owns teams; user records decide team and role
+
+**Why:** Enterprises expect Entra to be the source of truth for who exists and which groups they're
+in, but budgets and model policy belong to Merit Order. People are created at first sign-in, their
+team and role come from mapped groups, and admins can pin exceptions. Each request resolves team and
+role from the user record (cached for a minute), not from the key, so moves and disables apply to
+existing keys. SCIM provisioning (`/scim/v2`) applies Entra changes, including deprovisioning, as they happen.
+
+## 20. Quality scores are measured with graded tasks; judges only where nothing else works
+
+**Why:** Routing is only as good as its quality scores. Mechanical grading (exact answers, hidden
+unit tests run in a sandbox, the end state of a scripted tool environment) is cheap, repeatable and
+explainable, so it grades everything it can. Easy tasks can't tell the strongest models apart, so
+the `frontier` suite adds hard work at levels 3–5. Open-ended work (summaries, critiques,
+recommendations) can't be checked mechanically, so two judge models from different families grade
+it against concrete rubric statements; both must agree, which offsets a judge's preference for its
+own family. The eval suggests scores (with a finer 0–5 "ability" and a flag where evidence is thin);
+an admin decides whether to apply them.
+
+**Superseded by 28** as the default source of scores. The eval suite still runs, and applying its
+suggestions writes the models' `quality` in the config, which routing uses only with
+`quality.source: config` (or until live scores are first fetched).
+
+**Changed by 30:** measured scores now use the published scores' 1–5 scale with one decimal, from hard tasks
+only. The 0–5 "ability" is gone.
+
+## 21. Every cost is visible next to the switch that controls it
+
+**Why:** A gateway that starts cloud GPUs on its own has to be easy to overrule. The console shows
+where each GPU runs, for how long, and what it has cost, with stop, pin, and stop-all controls that
+take effect within seconds and are logged with who and why. Organization safeguards (org and GPU
+budgets, fleet caps, a per-request ceiling) are hard limits that apply to admin pins too, so no
+single action can exceed them. Limits are config (versioned, reviewable); stops and pins are
+runtime controls (immediate, expiring), because an emergency shouldn't wait on a config review.
+
+## 22. GPU prices come from SkyPilot's catalog; SkyPilot runs in its own environment
+
+**Why:** A hand-typed `gpu_cost_per_hour` is wrong as soon as SkyPilot places a replica somewhere
+else: 4×H100 spot ranges from about $4/h to over $20/h across clouds and regions. The controller
+uses SkyPilot's catalog (the same prices its optimizer uses) for break-even decisions, and each
+running replica's own cloud, region, instance, and spot price for burn rate, cost, and chargeback.
+The configured price is the fallback, and the only price for your own hardware. These are list
+prices; discounts, disks, and egress aren't included until bill reconciliation exists.
+
+**Changed:** bill checks are built (decisions 40 and 50). Cloud bills' GPU instance costs are compared with
+recorded GPU time; the controller still decides on catalog prices.
+
+SkyPilot pulls in about 150 packages and, as a dependency, would have downgraded the gateway's
+uvicorn. So it lives only in the controller's `-gpu` image, in a separate Python environment, and
+Merit Order reaches it through the `sky` CLI and SkyPilot's own interpreter.
+
+## 23. A named model is never silently swapped; substitution is opt-in and never to a weaker model
+
+**Why:** Harnesses and apps that name a model depend on its behavior, especially with tools. When
+a named model has nowhere to run (for example its GPUs were stopped), the default is a 503 that
+explains why for each route and suggests `auto`. Teams that would rather keep working can turn on
+`substitute_unavailable`: the request goes to a model at least as good for the task (never weaker),
+and the response says which model was replaced. `auto` sessions move to another model, mid-task included, when
+their model's routes are stopped, saturated, or all over capacity.
+
+## 24. Refusals are retried on another model only for `auto`
+
+**Why:** Safety classifiers sometimes refuse benign requests, and for `auto` the client has said any
+suitable model is fine, so the next model gets a chance (the refused attempt is still billed and
+logged). A client that named a model gets that model's answer, refusal included. Teams can turn the
+retry off.
+
+## 25. Every process follows the stored configuration
+
+**Why:** Budgets and safeguards edited in the console must reach everything that enforces them.
+Gateways, the worker (alerts), and the capacity controller (GPU budget, fleet caps) all load the
+newest stored version and reload when it changes; the YAML file only applies until the first
+version is saved. A version that fails to load is skipped and the last good one stays in effect.
+
+## 26. No request queue in the gateway; a full GPU queues only as a last resort
+
+**Why:** LLM calls are interactive and streaming, so a queue in Redis would add latency and a
+second set of workers to pull from it, for no gain: vLLM already schedules and queues on the GPU.
+A saturated GPU gets no new work while another route can take it, but when it's the only route,
+sending the request there to wait beats a 503. The wait is bounded (`max_waiting` per replica) so
+a backlog can't grow without limit. Gateways count in-flight requests and share the counts every
+2 s, because the controller's one-minute metrics sample is too slow to catch a burst.
+
+## 27. Prices are live, never typed in
+
+**Why:** `auto` compares prices on every request, so a stale price sends traffic to the wrong place, and
+prices change without notice: OpenRouter's provider prices move overnight, and Gemini 4 Carbon and Argon
+double on 1 December 2026. Prices typed into the config were right only on the day they were typed.
+
+**How:** The worker refreshes prices every `prices_refresh_minutes` (15): OpenRouter routes from
+OpenRouter's catalog (what OpenRouter charges), and direct provider APIs (Anthropic, OpenAI, Bedrock,
+Vertex, Azure, Foundry, Mistral) from the price list LiteLLM maintains, which also carries long-prompt
+tiers (Claude Haiku 5.5 above 100K tokens, GPT-6.x above 272K) that costing and routing apply. Gateways
+reload only when a price or a model limit (context window, output limit) changes. Every price change is
+reported; a maker's list price that disagrees with OpenRouter's for the same model raises an alert,
+since one list is then wrong; a list that can't be fetched keeps its routes' last prices and raises an
+alert. The Models page shows each route's source and
+when prices were last checked. OpenRouter requests also record what OpenRouter actually billed.
+
+**Not chosen:** Scraping the providers' pricing pages (fragile, and each one differs); trusting a single
+list without a cross-check. A `price:` in the config remains for what no public list knows, such as a
+negotiated discount, and is shown as an override. Self-hosted GPU routes have no list: their `price:` is
+the API-equivalent rate that the shadow price scales (decision 6).
+
+## 28. Quality scores come from published benchmarks, anchored to the best model
+
+**Why:** Our own eval suite couldn't separate the strongest models: every Claude model passed the same
+48 of 56 tasks, and the order of the rest was noise (a paragraph too many, one judge's verdict).
+Published suites run the same way for every model, with hundreds of hard tasks, do separate them.
+
+**How:** By default the worker takes Epoch AI's data (CC BY 4.0, no key): every model on one ability
+scale and every benchmark on the same scale by difficulty, so models are comparable even when tested on
+different benchmarks. A score is a model's chance of solving a task as hard as a reference benchmark
+(FrontierSWE), refined for coding by its own coding results; on the `best` scale the best model is 5
+and the rest in proportion. The Artificial Analysis Intelligence Index is the alternative source.
+`quality_override` always wins. A task type the source doesn't cover scores 0 ("unmeasured"), so `auto`
+doesn't pick the model for it; requests that name the model still work. Scores written in the config
+apply only until live scores are first fetched, or with `source: config`.
+
+**Not chosen:** A worst-to-best scale by default: it depends on the weakest model configured, so adding a
+cheap model reshuffles everyone, and it squeezed the frontier models together (it remains as `scale:
+range`). Averaging raw scores across whatever benchmarks each model happens to have: models tested
+only on easier benchmarks scored too high. Whole-number scores: six models tied at 4.
+
+**Changed by 58:** the default scale is `absolute`, a fixed bar: 5 × a model's chance ÷ `quality.anchor`, what the
+best model solved on 12 November 2026. `scale: best` remains as an option.
+
+## 29. Routing state per conversation, not per session id; context limits move work instead of failing it
+
+**Why:** Claude Code sends its subagents' turns and its side requests (titles, summaries) under the main
+session's id. They are separate conversations, each with its own history and cache, so sharing one
+routing record meant every subagent turn overwrote the main conversation's model, prefix hash and warm
+caches: the next main turn looked compacted, re-classified, and could pay to rebuild its cache
+elsewhere. Separately, a session kept its model for the whole task even after the conversation outgrew
+that model's context window, so the request was sent where it couldn't fit.
+
+**How:** Routing state is kept per thread: the session id, plus the subagent id (`x-claude-code-agent-id`)
+and `/aux` for side requests. Spend limits, the ledger and reports keep the session id, so a session's
+cost includes its subagents. Claude Code's request class (`x-claude-code-request-class`) caps the level
+of side requests (1) and compaction summaries (3), configurable. A conversation that no longer fits its
+model moves to one with room at the same floor, mid-task included; a provider's "too long" sends `auto`
+to a bigger window, and the error a client sees is worded as Anthropic's ("prompt is too long"), which is
+what Claude Code compacts on.
+
+**Not chosen:** Ignoring the agent id and relying on prefix hashes: every alternation between the main
+conversation and a subagent looks like compaction. Sending subagents to the cheapest model outright:
+Claude Code's own subagent model settings already do that when wanted, and some subagents do the hard
+part of the work. Refusing a too-long request at the gateway before sending it: the token count is an
+estimate, so the gateway would refuse requests that fit.
+
+## 30. Measured scores on the same scale as published ones, from hard tasks only
+
+**Why:** After decision 28 the published scores routing uses had one decimal on a best-is-5 scale, but
+the Evals page still scored models the old way: the highest whole level passed 75% of the time, beside
+a 0–5 sum of pass rates. The two couldn't be compared, and the old scores made models look measured
+when they weren't. Two Gemini models that hit rate limits on 32 and 36 of their 56 tasks showed 100%
+passed and top scores from the rest, and a provider account out of credit (HTTP 402) counted as 16 wrong
+answers.
+
+**How:** For each task type, a measured score is 5 × (the model's pass rate on level-4 and level-5 tasks
+÷ the best measured model's), with a 90% range, worked out together for every model's latest result.
+It needs at least 10 graded hard tasks; fewer shows "too few". Scores are worked out again from stored
+results each time they're shown, with today's rules for what counts (so old 402s are now skipped).
+Applying them writes either `quality` (used with `source: config`) or `quality_override` (wins
+everywhere), and the dialog says which will change routing.
+
+**Not chosen:** Fitting an ability scale to our own tasks the way Epoch does: with a few dozen tasks,
+most passed by every strong model, the fit would be mostly noise. Counting easy tasks: every model
+passes them, which squeezes all scores towards 5. Scaling each run on its own: a run that measured only
+weak models would make the best of them a 5.
+
+## 31. GPU break-even sizes each model and prices it through SkyPilot
+
+**Why:** The first break-even view assumed one $16-an-hour replica doing 4,000 tokens a second for every
+open model. A 16 GB model doesn't need four H100s and a 1.6 TB one doesn't fit on them, and spot prices
+are often a third of on-demand, so the answer (whether a GPU can ever pay) was mostly the assumption.
+
+**How:** Each model's weights (bytes at their published precision) and active parameters come from
+Hugging Face. Its replica is the cheapest machine per hour whose GPUs hold the weights in 70% of their
+memory, on 1, 2, 4 or 8 GPUs, priced from SkyPilot's catalog through SkyPilot itself (spot or
+on-demand, every cloud it covers), refreshed when over 6 hours old or on request. Throughput is an
+estimate from the GPUs' compute and the active parameters, labeled as one; a deployment's measured
+capacity replaces it. Price lookups run with no cloud credentials. Where the gateway has no SkyPilot
+(the Helm chart keeps it in the controller), the controller publishes the prices.
+
+**Not chosen:** Reading SkyPilot's catalog files directly: the same data, but SkyPilot already handles
+their versions, refresh schedule and per-cloud quirks. Putting SkyPilot in the production gateway image:
+~150 packages on the request path's image for a report. Choosing the machine with the lowest cost per
+token: it picked eight H100s on spot for a 16 GB model, which needs far more traffic to pay than one
+L4 does.
+
+## 32. Break-even weights: real file sizes, quantizing, and the machine that pays
+
+**Why:** Sizing counted every parameter Hugging Face reports as stored in bytes at a byte each, but
+gpt-oss, Kimi and DeepSeek ship packed 4-bit weights: Kimi K3.1 looked like 2.8 TB and too big for any
+machine, when it's 1.56 TB and fits on eight B300s. And "what about quantizing?" had only a switch for
+FP8. Once 4-bit weights fit on old A100s, taking the cheapest machine per hour that holds them showed
+"never" for models that pay on a faster machine.
+
+**How:** Weights are the safetensors files' size (one copy of each format), split by precision from
+Hugging Face's parameter counts; packed 4-bit weights are the bytes left over at about half a byte a
+parameter. Weights can be served as published, in FP8 (16-bit checkpoints) or in 4 bits (everything
+above 4, at 4.25 bits a weight with its scales); the GPUs compute FP8 weights at FP8 where they can, and
+4-bit weights at FP8 on Blackwell and at 16 bits elsewhere. Quality scores stay those of the published
+weights, and the tab says so wherever a model is quantized. Each model has the machines worth
+considering (cheapest per hour first, each faster than the cheaper ones); the report takes the cheapest
+that pays, or if none can, the cheapest per token (or a cheaper one within 10% of it). It also names
+the best level an open model can host per task type.
+
+**Not chosen:** A quality penalty for quantized models: there's no number to use that isn't made up, and
+the eval harness can measure the real one. Full FP4 throughput on Blackwell for 4-bit weights: vLLM runs
+the published MXFP4 models with 8-bit activations, so FP4's rate would double their estimate. Always the
+cheapest per token: eight GPUs for a model that fits on one, which is why decision 31 took the cheapest
+per hour; now that's the rule unless a faster machine is the only one that pays.
+
+## 33. Grok, Mistral's own API, DeepSeek V4.1 Flash 1017, and scores for models Epoch barely covers
+
+**Why:** Routing matters most among the frontier APIs (Anthropic, OpenAI, Google, xAI, Mistral), and
+Grok wasn't configured at all. Mistral's models only went through OpenRouter although a Mistral key was
+set. DeepSeek published a better release of V4.1 Flash (1017). And eleven open models had no score at
+all, partly because some are named in Epoch's data by their Hugging Face repository
+(Qwen3-Coder-480B-A35B-Instruct), which nothing matched.
+
+**How:** Grok 4.7 through OpenRouter and xAI's own API (the `xai` backend, off until `XAI_API_KEY` is
+set); its scores come from Epoch like everyone's (coding 2.5). Mistral Large 4, Small 4 and Ministral
+14B route to Mistral's API as well, at the same prices. DeepSeek V4.1 Flash 1017 is its own model next
+to September's, so `auto` takes whichever qualifies more cheaply. Models are also matched by their
+Hugging Face name, and names are tried in a fixed order (route ids, `hf_id`, aliases), so the first
+match is always the same one. (Changed: a model's `benchmark_name`, when set, is tried before all of these.) A model with neither FrontierSWE/FrontierCode results nor an index gets
+its coding ability from older coding benchmarks (`quality.fallback`: Terminal Bench, GSO-Bench,
+MirrorCode); Qwen3 Coder gets 1.0 that way.
+
+**Not chosen:** Replacing September's DeepSeek release with 1017: today it would make level-2 coding
+cost about four times as much at the prices `auto` uses ($0.13 against $0.034 a million tokens), and
+score lower (2.0 from its index alone, against 2.4 from September's FrontierCode result), although
+1017 is the better model. Using the older coding benchmarks for every model without coding results,
+alone or averaged with the index: checked against the 16 models that have both kinds of results, they
+predict FrontierSWE and FrontierCode results less well than the index does (they miss by about 2.6
+points on the ability scale, the index by 2.2), and averaging the two gains about 0.1. WeirdML: its
+first version misses by about 6, and v3's file holds a different score than the one the index is
+fitted on. Mistral Medium 3.5,
+Mistral's closed model: it scores below Large 4 (index 142 against 155) at twice the price.
+
+## 34. Evals try failed requests again, and reruns fill in what a run skipped
+
+**Why:** Of the hard coding tasks on 11 and 12 November, Grok lost 2, DeepSeek V4.1 Flash 1 and Gemini
+4 Carbon 1 to a server error (a stream that broke off, a dropped connection), skipped on the first try;
+a lost connection to the gateway even counted as a wrong answer. And running only the skipped tasks
+again replaced a model's whole result: after Kimi K3.1's rerun of the 5 tasks its first run couldn't pay
+for, its scores rested on those 5 alone, and it showed "too few" despite 13 graded hard tasks.
+
+**How:** Server errors other than "wait" (HTTP 500, 502, 504) and lost connections are tried three times
+in all, 5 and then 10 seconds apart; only the failed request is sent again, so an agent task carries on.
+After that the task is skipped, never failed. A model's latest result is put together task by task: each
+task counts from the newest finished run that graded it, so a rerun of a few tasks fills in or replaces
+just those.
+
+**Not chosen:** Retrying wrong answers: a model's best of three would score as if it passed every time;
+`--repeat` counts every try. Keeping only the latest run per model: simple, but every partial rerun threw
+away everything else. Combining only runs from a recent window: a full run replaces every task anyway,
+and a window would quietly drop results nobody replaced.
+
+## 35. A codebase suite: real changes from this repository's history, graded by their own tests
+
+**Why:** On `frontier`, the strongest models pass nearly every hard coding task (Fable 13 of 15, Haiku
+14 of 15), so measured coding scores can't tell the top apart. Its tasks are self-contained: a precise
+spec for one module, or a bug in a 300-line repository. Real coding work is mostly finding where a change
+belongs in a large codebase someone else wrote and making it without breaking anything, and that's what
+separates models.
+
+**How:** Each task is a commit from Merit Order's own history: the repository as it was before (6,000–17,000
+lines of Python and 50–630 tests), an issue describing the behaviour and the names the tests use, file tools,
+and pytest in a sandbox with the repository's own packages. Grading follows SWE-bench: the tests the
+commit added or changed must pass, and so must every test that passed before it, both lists found by
+running the tests before and after the commit in the same image. The repository is private and newer than
+the models' training data, so none has seen it. The data stores each file's text once, since the
+snapshots share most of them.
+
+**Not chosen:** SWE-bench itself: public, so its fixes are in training data, and it measures Python
+libraries rather than the kind of service code Merit Order's users write. Grading with the commit's
+tests alone: a change that breaks something else would pass. Issues written from the commit messages:
+they say how the change was made, which gives the answer away; each issue describes the behaviour
+instead. Letting the model's edits to `tests/` count: weakening a test would pass it.
+Only small, easy tasks (the first version had 12, half of them under 40 lines, and one the cheapest model
+solved for a cent): tasks every model passes can't separate the top. One family's tools alone: the tasks and
+issues were drafted with one model family, so the tools include both styles of editing (exact-text edits,
+OpenAI's patch format) and a shell, and a model from a different family checks every issue against its tests.
+
+**Changed:** the repository became public with release 0.0.1. Models trained after that may have seen these
+commits, so a strong result on this suite from a newer model may be memory, not skill
+([11, Evals](11-evals.md#the-codebase-suite)).
+
+## 36. Gemini's native API behind Chat Completions; thought signatures ride on the tool calls
+
+**Why:** Gemini's OpenAI-compatible endpoints work, but they flatten what its own API reports: thought
+summaries, cached tokens, and why a reply was blocked (a safety or recitation stop should be a refusal that
+`auto` retries elsewhere, not an empty answer). The native API is one more converter at the backend, like
+OpenAI's Responses API (`api: gemini` next to `api: responses`), so routing, metering, translation and the
+console keep dealing with two formats.
+
+**How:** Gemini 3 and later reject a function call in the current turn that comes back without its thought
+signature. Chat Completions has no field for it, so it rides on the tool call as
+`extra_content.google.thought_signature`, the field Google's own OpenAI-compatible endpoint uses, which
+clients that send messages back as they got them already keep. A call with no signature (a rebuilt history,
+a translated Anthropic request, a session that moved from another model) is sent with the bypass value
+Google documents for histories it didn't generate. Thinking levels are fitted to what each model takes,
+from Google's table, so an effort never fails a request.
+
+**Not chosen:** a third gateway format: every place that branches on the format would need a Gemini case.
+Encoding the signature in the tool call id: ids round-trip through every client, but signatures run to
+kilobytes, and other providers cap ids (OpenAI at 40 characters), which would break a session that moves.
+Keeping signatures in Redis by call id: state the gateway otherwise doesn't need, for a gain only on
+clients that drop the field. Thinking blocks for Anthropic clients: Claude Code would send them back, but
+Claude rejects thinking signatures it didn't make once the session moves to Claude.
+
+**Revisit if:** the bypass value costs measurable quality for Claude Code sessions on Gemini, or Google stops
+accepting it.
+
+## 37. Google sign-in: a Workspace domain is required, and email lists stand in for groups
+
+**Why:** Google's issuer is the same for every Google account, so a valid token proves only that someone
+has one. Entra's issuer is per tenant, which is why Entra needed no such check. The `hd` claim in Google's
+signed token names the account's Workspace domain, and Google's docs say to check it; the domain in an
+email address proves nothing. So `hosted_domains` is required with the Google issuer, and the config
+won't load without it, rather than letting any Google account sign in with the default team's budget.
+Google's tokens carry no groups, so teams and roles come from lists of addresses and domains, applied
+only to an address the token marks verified (`email_verified`). Entra's tokens don't have that claim and
+its addresses can be set by users, so the lists never apply to them. A token whose `email_verified` is
+false is refused outright, so an unverified address never reaches the People page or a report.
+
+**Not chosen:** reading Google Groups through the Admin SDK Directory API: it needs a service account
+with domain-wide delegation, a broad grant for a gateway to hold, and a lookup at every sign-in.
+Allowing any Google account when no domain is set: an easy mistake with a costly result. A browser
+(authorization code) login for Google: Google supports device login for the `openid`, `email` and
+`profile` scopes, which is all sign-in needs, and the CLI already uses device login for Entra.
+
+**Changed by 48:** Google Groups are read through the Cloud Identity API, by a service account with the Groups
+Reader role and no domain-wide delegation. The email and domain lists still apply beside them.
+
+## 38. Levels come from the work; a long context only rules out models too small for it
+
+**Why:** The classifier raised coding one level past 60,000 tokens of context and gave plain text level 3
+past 20,000. Claude Code sends many tools (level 4) and passes 60,000 tokens within a few turns, so most
+real sessions on `auto` became level 5, which only Claude Fable met, at $8/$40 per million tokens: chosen
+because they were long, not because they were hard. Length is a question of room, and the router already
+knew every model's context window. The rules were also word lists in code that nobody could see or change.
+
+**How:** The level comes from the request's wording, its tools, and the client's `X-Route-Floor` or
+`X-Route-Hint`; length never raises it. A long context rules out the models whose window can't hold the
+prompt plus the reply the client asked for (its `max_tokens`, lowered to the model's maximum output), within
+95% for the estimate, and the cheapest model left at the level wins. When nothing at the level has room, the
+request goes to the largest window and the provider decides, as before; a refusal reaches the client as
+"prompt is too long", which makes Claude Code compact. The routing reason names the rules that set the
+level, with the listed word that matched, and the models ruled out with their windows. The ledger keeps it
+(`route_reason`); the console shows it for each request (Reports → Requests, the Dispatch feed) and the rules
+to everyone (Reports → Levels). The rules are `routing.levels`, with today's as the defaults: the levels, the
+tool count that makes an agent, the short-question size, and the word lists as regular expressions. A level
+outside 1–5, a pattern that doesn't compile or matches empty text (it would match every request), or a
+misspelt key is refused when the configuration is saved. One length rule stays: plain text under 400 tokens
+in all is level 1. It can only lower a level; a question on its own is little work.
+
+**Not chosen:** Higher thresholds, or length as one signal among others: any level that rises with length
+sends long sessions up the ladder, and a long session pays its level's price on every turn. Judging the
+short question by the newest message alone: a short follow-up in a long conversation ("and the second
+one?") would drop to level 1 and leave the model that holds its context and cache. Refusing at the gateway
+a request no model at its level can hold: the token count is an estimate (decision 29). A model below the
+level with a bigger window: the level is the quality bar. Quoting the matched text in the reason: the
+ledger holds no prompt content, so it names the pattern. A general rule language in the config: today's
+rules have a fixed shape, which can be validated and shown as a table.
+
+## 39. The gateway picks the GPU replica; eviction from vLLM's KV events, else estimated from its metrics
+
+**Why:** Sessions stayed on their GPU deployment so their prefix cache stayed warm, but within it SkyServe's
+load balancer (or whatever fronted a static server) picked the replica for every request without knowing
+sessions. With N replicas a turn found its cache about one time in N and recomputed the whole prefix
+otherwise: tens of seconds of a replica's throughput for a long agent conversation. And the router treated a
+GPU cache as warm for a fixed TTL, while vLLM keeps a prefix until it needs the space: an idle replica keeps it
+for hours, a busy one loses it in a minute.
+
+**How:** When replicas can be addressed (SkyServe reports each replica's endpoint; a static server lists
+`static_urls`), the router prices each replica like a route, with its own load and the share of the session's
+prefix it probably still holds, and moving off the session's replica needs the usual switch margin. A replica
+that's gone, not ready (SkyServe's shutting down) or full is skipped; a draining deployment only takes sessions
+warm on one of its replicas. The share still held comes from vLLM's KV events where a deployment turns them on
+(the gateway sends each conversation's id as `X-Session-ID`, vLLM 0.30 and later puts it on the blocks it
+stores, and the controller tracks each session's chain of blocks per replica), else from an estimate from the
+replica's metrics (free space at the turn, and tokens written into the cache since, against LRU eviction that
+takes a finished request's last blocks first), else from the TTL. Behind a load balancer the share is divided
+by the number of replicas. Each GPU turn's expectation is counted against what vLLM reports it read from the
+cache, so the estimate can be checked.
+
+**Not chosen:** Consistent hashing of sessions to replicas: it ignores load and cache contents, and every
+scale-up or preemption moves sessions anyway. Tokenizing prompts in the gateway to compute vLLM's block hashes
+and match them against the events (as llm-d's indexer does): it needs each model's tokenizer and chat template
+in the gateway and a hash scheme that must match vLLM's exactly, when vLLM can tag blocks with the session
+itself. Asking vLLM to re-report every reused prefix (`kv_cache_report_mode: full`): about half a megabyte of
+events per turn for a 100k-token conversation, for information the incremental events already give. Opening the
+events port by default: the events carry token ids, which are prompt content. Calling llm-d's KV-cache indexer:
+it's a library inside llm-d's scheduler with no API of its own; behind llm-d, its scheduler should pick the
+replica.
+
+**Revisit if:** SkyServe or vLLM's router gains session- or prefix-aware replica routing that gateways can
+steer, or measured hit rates (`meritorder_gpu_cache_turns_total`) show the estimate is often wrong.
+
+**Changed by 56:** SkyServe is gone. Each SkyPilot replica is a cluster of its own, and the controller publishes
+its address, so the gateway still picks the replica.
+
+## 40. Costs are checked against providers' own cost APIs, daily, by model
+
+**Why:** Every cost in the ledger except OpenRouter's is worked out from a price list, and nothing checked it. A
+wrong list price, a token counted differently, a 1-hour cache write priced as a 5-minute one, or a discount nobody
+wrote into `price:` would go unnoticed, and finance trusts the savings only if the spend matches the invoice.
+
+**How:** The worker fetches each provider's cost data every 6 hours, rereading the last 40 days because providers
+restate them: Anthropic's Usage and Cost Analytics API, OpenAI's Costs API, AWS Cost Explorer (Bedrock by model and
+inference type), the Cloud Billing export in BigQuery, and Azure Cost Management's Query API. Lines are stored per
+UTC day and compared with the ledger by provider, model and day. Model names are matched by words (route ids, price
+keys, ids the ledger saw), refusing a match followed by a version number or a variant word, with a mapping in the
+config for the rest. Every line that doesn't match a model is listed with the reason: not matched lines count toward
+the provider's bill, so other usage of the account shows as a gap; credits, taxes and batch-tier usage are left out
+of the comparison and shown. Days younger than each provider's settle time are partial and never alerted on. GPU
+instances carry a `meritorder-deployment` tag from SkyPilot, so cloud bills can be compared with recorded GPU time.
+
+**Not chosen:** AWS Cost and Usage Reports and Azure cost exports: they need a bucket or storage account and a
+parser for each format, and the APIs already give daily cost by model; GCP has no such API, so its export in
+BigQuery is the source there. (Decision 50 adds them, beside the APIs.) Anthropic's legacy `cost_report`: being replaced by the Analytics API, and it can't
+filter by API key or split usage by product (Messages API, Batches, Claude Code). Monthly matching against the
+invoice: a month is too late to catch a wrong price, and invoices don't break down by model. Comparing after credits: credits are applied by the account, not per request,
+so they would show as gaps every month; they're shown beside the comparison instead. Fuzzy string similarity for
+names: it can't tell Claude Sonnet 5 from 5.5, which cost differently.
+
+**Changed:** batch-tier lines are matched too, since decision 45, against the ledger's batch rows. Decision 50 adds
+AWS's CUR 2.0 and Azure's cost exports as sources beside the APIs.
+
+## 41. Token counts: an estimate by content, calibrated per model from what replies report
+
+**Why:** Routing needs a prompt's size before it picks a model: for the context-window check, long-prompt
+prices, cost estimates, the output allowance and the per-request cost limit. The gateway counted 4
+characters a token for everything. That ran low on dense code, counted a Chinese document at a quarter
+of its size, and counted a screenshot's base64 as tens of thousands of tokens of text, enough to rule a
+conversation out of every small window. And each tokenizer counts the same text differently, so no fixed
+rule is right for every model.
+
+**How:** One estimate per request, by what the text is made of (letters, digits, symbols, whitespace,
+case and letter-digit changes, multi-byte characters), with images, PDFs and audio counted the way each
+provider counts them. Then every reply's reported prompt size corrects it: a running ratio per model,
+weighted by prompt size, bounded and capped against outliers, and leaning on the model's family until it
+has replies of its own. The router counts the prompt in each candidate's own tokens. Ratios outlive
+configuration reloads like measured speeds, and are saved to the store so a restart keeps them.
+
+**Not chosen:** Running each provider's tokenizer: Claude's and Gemini's aren't available offline, and
+asking a provider's API to count costs a round trip on the request path. `tiktoken` for GPT models: a
+new dependency that downloads its encodings on first use, for one family only; calibration gets GPT
+models close without it. A fixed ratio per vendor typed into the configuration: tokenizers change with
+model versions, and a measured ratio follows them. Learning from small prompts too: their count is
+mostly the provider's own fixed text, which a ratio would then wrongly scale up for long prompts.
+
+## 42. GPUs on your own Kubernetes cluster: KServe or llm-d, over plain HTTP, priced per node type
+
+**Why:** Teams already on Kubernetes have GPU nodes they pay for anyway, and want open models served
+there instead of SkyPilot starting VMs elsewhere. The controller's decisions stay the same; only the
+provisioner changes, as decision 7 planned.
+
+**How:** `provisioner: kubernetes` with two ways to run vLLM. **KServe:** an `InferenceService`
+(`serving.kserve.io/v1beta1`) in Standard mode whose predictor is the vLLM server, with KServe's
+autoscaler off and `minReplicas` = `maxReplicas`, because the controller decides how many replicas pay.
+**llm-d:** a Deployment of vLLM pods carrying the labels of an `InferencePool` the team installed with
+llm-d's router; its endpoint picker routes by prefix cache itself, so the gateway's replica affinity
+(decision 39) is off there unless set, and requests go through llm-d's Gateway. On KServe, each pod's
+address is published like a SkyPilot replica's, so gateways in the cluster keep sessions on their pod.
+Both run the same `vllm serve` as SkyPilot, so a model behaves the same wherever it runs. The controller calls
+the Kubernetes API with httpx and the pod's service account token (or a kubeconfig, for development),
+and the Helm chart gives the controller its own ServiceAccount with a namespaced Role; the gateways get
+no rights. A cluster has no price catalog, so prices are configured per node type, and a replica pays
+its share of the node by its GPUs; the console shows the source. A quota refusal, an image that can't
+be pulled, a missing Secret or a vLLM crash loop stops a start at once with the reason; waiting for a
+GPU node doesn't, since a cluster autoscaler may be adding one. Utilization is read from each pod.
+
+**Not chosen:** KServe's `LLMInferenceService` (KServe's own llm-d integration, which creates a
+Gateway route, InferencePool and endpoint picker per model): still `v1alpha1`, and every start would
+bring up routing pieces too. With llm-d's router installed once, the model servers start and stop
+behind it. Creating the InferencePool and endpoint picker ourselves: more permissions (Roles for the
+picker, Services, HTTPRoutes) and a copy of llm-d's charts to keep in step. KServe's Hugging Face
+runtime instead of the vLLM image: different paths (`/openai/v1`) and flags than every other
+deployment, and no guarantee that `priority` reaches vLLM. The official Kubernetes Python client: a
+large dependency for a handful of calls; plain HTTP covers in-cluster tokens, kubeconfig certificates and
+exec plugins. Letting KServe's or a KEDA autoscaler size replicas: it scales on load, not on whether the
+GPUs pay for themselves, and two controllers would fight over the count.
+
+## 43. Route by expected cost per success, opt-in, with chances read from the scores
+
+**Why:** The threshold treats a model at the level as good enough and one a tenth of a point below it as
+useless. So level-5 coding (an agent's task with hard wording, decision 38) goes only to Claude Fable at $8/$40
+per million tokens, though Gemini 4 Carbon solves 61% of FrontierSWE-hard tasks to Fable's 70%, for about a fifth
+of the price per try. The quality data already says how likely each model is to succeed, so routing can weigh price
+against failing.
+
+**How:** `routing.model_choice: cost_per_success`, or per team; `threshold` stays the default. A model's chance at
+each level is read back from its score: the scale says what a score means on the reference task, a model exactly
+at a level solves that level's work as often as the best model solves the reference, and other models are placed
+by their distance from the level on Epoch's logistic ability scale. A try costs the route's usual estimate, warm
+cache or rebuild included. A failed try is paid for and the work is then redone on the threshold's pick until it
+succeeds: expected = cost + (1 − chance) × redo cost ÷ redo chance. A model whose chance at the level is under
+`min_success_chance` (0.6) is never picked. Models without a chance, a client's `X-Route-Floor` and named-model
+substitution use the threshold, and so does a request where nothing in reach can run. The priority's premium,
+stickiness and speed checks compare expected costs. Measured scores (`quality.source: config`) get chances from
+`quality.measured_best_rate`, which applying an eval run's scores writes.
+
+**Not chosen:** Cost ÷ chance, retrying the same model until it works: the simplest, but a nearly free model
+with a 10% chance would always win, and a task a model failed is usually still hard for it. Redoing failures on
+the best model: every failure would cost Fable's price, so hardly any model below the level could win. Each
+model's published chance instead of its score: more exact, but it would ignore overrides, and gpt-oss-20b would
+be a 13% bet on "What's the capital of Portugal?", where the score floor of 1 says any model can take level-1
+work. Pass rates per level from our own evals: 10 to 15 tasks a level can't separate the strong models
+(decision 30). A dollar price on the time a person spends noticing a failure: there's no defensible number, and
+the minimum chance stands in for it. Making it the default: the threshold is easier to predict and audit, and the
+chances haven't been checked against real outcomes yet.
+
+**Revisit if:** outcomes show the chances are off (tasks redone after a pick below the level), or evals can measure
+pass rates per level well enough to stand in for chances read from the scores.
+
+**Changed by 58:** a 5 now stands for `quality.anchor`, a fixed chance, not the best configured model.
+
+**Extended by 62:** `expected_cost` counts a person's time per failed attempt (a setting with a documented default,
+not a number we claim), conditions the next attempt on the failure, and escalates inside a task. Cost per success stays.
+
+## 44. A learned router that corrects the rules' level from outcomes, opt-in, proven in shadow mode first
+
+**Why:** The level rules are word lists (decision 38). They're visible and predictable, but a listed word raises a task
+whatever it's about, and hard work described in other words isn't recognized. The gateway sees what happens after each
+answer, and that says something about whether the level was right.
+
+**What exists elsewhere** (read in November 2026): RouteLLM (LMSYS, ICLR 2025) trains matrix-factorization and BERT
+routers on Chatbot Arena's human preference pairs to choose between a strong and a weak model. Arch-Router (Katanemo,
+arXiv 2506.16655, June 2025) is a 1.5B model that matches a prompt to route policies written by admins, in about 50 ms
+on a GPU. RouterBench (2024) is 405,000 recorded outcomes of 11 models on public benchmarks. IRT-Router (ACL 2025) puts
+models and queries on one item-response scale. RouterArena (ICLR 2026) and LLMRouterBench (2026) compare dozens of
+routers under the same conditions and find smaller gains than their papers report, and "The Routing Plateau" (arXiv
+2606.07587, revised September 2026) finds 21 methods within a fraction of a point of each other, a frozen-embedding
+kNN among the best: routers mostly learn which models are stronger overall, not which query a weaker one gets right.
+
+**How:** The learned router corrects the rules rather than replacing them. A request's difficulty, in level units, is
+the rules' level plus the weights of its features; its learned level is that rounded. It's trained as an item response
+model, the way Epoch places models and tasks: work of difficulty d sent to a model scoring q (the score routing uses,
+from Epoch or applied from evals) shows a failure signal with probability sigmoid(slope × (d − q) + intercept).
+Features are computed while the request is in memory and never hold its text: the words and word pairs of the text
+the rules read (its first and last 2,000 characters), hashed with a key into 65,536 buckets, and named facts (the rules
+that fired, tool count, size, conversation depth, Claude Code's request class, the client). The labels come from what
+the gateway sees after an answer: the same request sent again, a raised `X-Route-Floor` or `X-Route-Hint: smart`, a
+stopped answer, the person asking again in a new session, a refusal; each weighted by how weak it is. The client's tags
+only move how often a failure gets noticed, so a client with a regenerate button doesn't look like harder work. The
+corrections average to zero over the training requests: these labels can't separate how hard work is from how often
+failures are noticed at all, so the rules stay right on average and the model moves requests relative to others at the
+same level. Six fits on different halves of the requests make the model; their spread, and the prior's for anything
+none of them saw, gives its confidence. Training is pure Python, in `meritorder router train` or the worker, and a
+model is used only if it predicts the newest fifth of the requests (held out) better than the rules alone by more than
+twice the standard error. Models are versioned in Postgres; gateways load the active one on configuration reload.
+`routing.learned.mode` is off by default; `shadow` records and compares and changes nothing; `route` uses the learned
+level when its confidence is at least `min_confidence` (0.8). The rules decide when there's no model, it's stale (older
+than `max_age_days`, the rules changed, another feature key), it's unsure, or it fails, and every routing reason says
+which. A client's `X-Route-Floor` and Claude Code's caps apply as before. Inference takes about 0.4 ms at the p99 on a
+long agent prompt.
+
+**Not chosen:** RouteLLM's routers: they learn from preferences between two models' answers to the same prompt, which
+this traffic doesn't have (one answer per request), their public checkpoints learned Chatbot Arena's mix of work rather
+than an organization's, and BERT needs an ML runtime. Arch-Router: it picks a domain from policies people write, which
+the level rules already do from words, and it would add a GPU model (or another service holding prompts) to the request
+path. Embeddings with kNN, the strongest simple baseline: an embedding model on every request means an ML runtime in the
+image or an HTTP call that sends the prompt elsewhere, and stored embeddings can be inverted back to text; an embedding
+source behind an operator's endpoint can be added later as one more feature. Learning each model's own success rate:
+traffic only covers the models the router picked, while a request's difficulty against a model's score carries over to
+models with no traffic and leaves the scores (Epoch, evals) in charge of the models' side. Confidence from a diagonal
+Laplace approximation: tried; it overstated the spread several times over for words that occur together, so the model
+was hardly ever sure. Absolute levels from signal rates: not identifiable without knowing how often a failure gets
+noticed. Training in the gateway: CPU-bound Python would hold up requests. Exploration (sending some requests below
+their level to learn, as bandit routers do): it changes routing, and shadow mode comes first. Judged labels (replaying a
+sample of requests on a stronger model and having a judge grade the pair): not built with the learned router. The gateway
+doesn't keep prompts, so a replay would have to run while the request is in flight and send people's prompts to two more
+providers they didn't choose, possibly outside their team's allowed backends; and a judge preferring one answer doesn't
+mean the cheap one failed. Graded eval runs already give model-level evidence. **Since built as decision 52**, on the
+terms set here: off by default and per team, a cost estimate first, a required spending cap, a stop at the team's and
+the organization's budgets, routed within the team's allowed models and backends, and a label that's "good enough", not
+a preference.
+
+**Revisit if:** the shadow report on real traffic shows the rules' picks failing clearly more often where the learned
+router would have gone higher (or no more often where it would have gone lower) than where they agree; signals turn out
+too rare to learn from (then judged labels, decision 52, or an embedding source); or the level rules change so often that
+models are mostly stale.
+
+## 45. Provider batch APIs: each request routed at batch prices, results read back from the providers
+
+Supersedes decision 10's exclusion of batch APIs.
+
+**Why:** Every provider Merit Order routes to takes about half off for work that can wait up to a day, and a lot of an
+organization's spend can wait: backlogs, labelling, nightly evals and reports. Without the gateway, people use one
+provider's batch API directly and skip the routing, budgets and reports; or they use the live API and pay double.
+
+**How:** The gateway speaks OpenAI's Batch API (`/v1/files`, `/v1/batches`) and Anthropic's Message Batches
+(`/v1/messages/batches`), so both SDKs work unchanged. Each request is routed on its own by the live router with
+`batch=True`: only routes whose backend has a batch API, priced at batch prices for one request (LiteLLM's `*_batches`
+prices, else the provider's published discount), with levels, policies, the per-request cost limit and cost per success as
+live. Requests go into one provider job per backend (and per model where the provider takes one model a job), within each
+provider's limits. Anthropic, OpenAI, Azure OpenAI's global and data-zone batch, the Gemini API's batch mode, Bedrock batch
+inference and Vertex AI batch prediction are built, the last two through a bucket the operator gives. The estimated cost is
+checked against every budget and reserved in the spend counters; the worker polls the jobs with a lease per job and backoff,
+and settles each result into a ledger row (`service_tier: batch`) priced at the batch price, the discount as its own savings
+cause. The bills check now matches batch-tier lines. Content stays out of the gateway: Anthropic-style requests go straight
+to the providers; an OpenAI-style upload is held encrypted only until it's submitted; results stay with the providers (or
+in the operator's bucket) and are read again, converted, whenever the client asks, until `batches.retention_days`, when the
+worker deletes them there. Details in [02, Request flow](02-request-flow.md#batches-work-that-can-wait).
+
+Batch lines and the learned router (decision 44): a line gets its level as a new live task does, so in route mode the
+learned router's level applies when it's sure, and its pick at the other level is priced at batch prices too. But batch
+lines record no request features for it, auto or named. Its labels are what follows an answer: the same request sent
+again, a raised `X-Route-Floor`, a stopped stream, the person asking again in a new session. None of these can follow a
+batch line, so every line would count as a success, and a line followed by the same person's live request with similar
+words would count as someone giving up. A batch line has no session, so nothing a live request does is counted against it.
+
+**Not chosen:** Holding results in the gateway so they outlive the providers' copies: it would be the largest store of
+content the gateway has, for a convenience the client gets by downloading them. Passing a batch through to one provider
+whole: simpler, but it would skip routing and the cheapest model per request, which is the point; and OpenAI's one-model
+rule would make `auto` impossible. Submitting from the worker instead of while the client waits: Anthropic-style requests
+would have to be stored until then. A new queue in the gateway that releases live requests slowly (a "batch mode" of our
+own): no discount without the providers' batch APIs. Counting the discount as routing savings: a client could get it from
+the provider directly, so it would inflate what Merit Order is credited with. Reserving each request's worst case
+(its whole output allowance): a batch without `max_tokens` would reserve hundreds of times what it costs and be refused;
+the estimate uses `max_tokens` where the client set one, as the per-request limit does. Training the learned router on
+batch lines with labels of their own (a failed or expired line): those say the provider failed, not that the level was
+too low. Leaving the learned router out of batch routing: route mode is the organization's choice of how levels are set,
+and a batch line's work is as hard as the same request sent live.
+
+**Revisit if:** providers start charging batch work differently from the published discount (the bills check will show
+it), or clients need results longer than the providers keep them. (Self-hosted GPUs take batch work in their headroom
+since decision 49.)
+
+## 46. Model-based compression: our own LLMLingua-2 service, each result decided once, cuts stored by content hash
+
+**Why:** The rules (decision 16) only clean up command output and cut huge ones. Fetched web pages, docs and long
+explanations are mostly prose the rules can't shorten, and LLMLingua-2 drops about half of such text's tokens at a
+small model's cost. But it isn't deterministic across model versions, library versions or hardware, and a tool
+result compressed differently on a later turn would miss the provider's prompt cache for everything after it, which
+costs more than compression saves.
+
+**How:** Opt-in per team (`compression.model`), on top of the rules, tool results only, on every backend. Each result
+is decided once, the first time a gateway sees it on a turn: the gateway asks the service, by the team's deadline,
+and stores the decision in Redis under a hash of the text, team, model, rate and guard version, for at least as long
+as a session stays sticky, renewed with each use. A result not compressed by the deadline, or when the service
+fails, is stored as left alone, and so is one already sent on an earlier turn without a decision. The first gateway
+to store a decision wins (`SET NX` and a read-back in one transaction); the others use it. The decision is the
+character ranges to drop, so Redis never holds content and the gateway cuts the original text the harness resends.
+A guard sends only prose: code, JSON, errors, logs, tables, numbered file listings and file readers' results stay
+as they are, and words with digits, paths, identifiers, quotes and negations are never cut. The service is
+`meritorder compressor` (the `compressor` extra, its own `-compressor` image, a Compose profile and a Helm
+component, all off by default), calling llmlingua 0.2.2's `PromptCompressor` with `return_word_label=True` and
+matching the labelled words back to the original text. Savings are counted like the rules', as a cause of their
+own (`savings_compression_model`, schema migration 15), so what the rules cut is never counted as the model's.
+
+**Not chosen:** An OpenAI-style or plain HTTP endpoint the operator points at: nothing standard serves token
+classification with LLMLingua-2's word merging, percentile threshold and forced tokens (Hugging Face's
+token-classification pipelines return entity groups, not per-word keep probabilities), so the operator would have
+to write that server; ours speaks a documented API that any other server can implement. Running the model in the
+gateway: torch, transformers and 0.7 to 2.2 GB of weights in every gateway, and a GPU per gateway to be fast.
+Storing the compressed text: content in Redis for hours, against decision 5, and llmlingua's own output changes
+what it keeps (it puts spaces into `1.2.3` and loses accents and emoji); cutting the original by stored ranges keeps
+every kept byte as it was. llmlingua's kept spans (`<llmlingua, compress=False>`): only the original LLMLingua reads
+them, so the gateway leaves protected text out of the request instead. Recompressing results seen first in older
+history: they went upstream uncompressed, so compressing them now would break the cache it just built. Waiting for
+the model however long it takes: a slow or overloaded service would stall agents. One compression cause, with each request
+labelled rules or model: a request the model cut would count what the rules cut in it as the model's, so reports
+couldn't say what the model adds. (The label stays, to filter by.)
+
+**Revisit if:** real runs show agents fail more on compressed results, or the guard keeps too little to be worth it.
+Measured on the published models (docs/04): the model removes about a third of the prose it's sent at the default
+rate, 5–13% of a web page, doc or search result, nothing from logs, code, diffs or JSON; XLM-RoBERTa large is too
+slow on a CPU for the 1-second deadline, multilingual BERT and a GPU aren't. The measurements also found the guard
+letting the models cut flags, hyphenated names, typographic quotes, search results, test ids and diffs, which it now
+keeps, along with names and words like "only" and "same". Whether agents still succeed hasn't been measured.
+
+## 47. ClickHouse holds a copy of the ledger for large reports; Postgres stays the record
+
+**Why:** A monthly-partitioned Postgres table handles millions of requests a month, but at hundreds of millions the
+reports that scan rows get slow: a month broken down by tag, an export, the GPU what-if over 90 days, the ledger's side of
+the bills. A column store answers those in a fraction of the time. Budgets, spend caps and the list of recent requests
+need every row the moment it's written, and transactional state (keys, people, configuration, sessions) has nothing to
+gain. Nor do the learned router's tables (`route_features` and `router_models`, decision 44): they're routing data, not
+ledger rows, so they stay in Postgres only. Training reads at most `train_requests` recent rows, features are deleted
+after `keep_days`, and its shadow report reads Postgres.
+
+**How:** Postgres is written first, as without ClickHouse, and the worker copies the rows (`reporting.clickhouse`,
+off by default). Every 30 seconds it compares the last 3 hours, and everything since the copy was last complete, minute
+by minute on both sides, and inserts what's missing in large batches; an hour with a row twice, or a rollup that disagrees,
+is deleted and copied again whole. A Postgres advisory lock per hour keeps two copies from sending the same rows. So
+delivery is exactly once in the end, whatever fails in between: a ClickHouse outage only delays the copy, and the same code
+copies history (`meritorder clickhouse backfill`, idempotent). Reports over more than 7 days and tag breakdowns read
+ClickHouse once it covers their range and is caught up, and Postgres otherwise; each says which store answered. The table
+is a MergeTree partitioned by month and ordered by day, team, user, model and backend, with every column typed as
+Postgres stores it; the hourly rollup is a materialized view, as in Postgres; TTLs are optional. Over the HTTP interface
+with httpx, like every other service the gateway talks to.
+
+**Not chosen:** The gateway writing to both: a row it buffers is lost if the process dies before the insert, so a copy
+from Postgres would be needed anyway to fill the gaps, and two writers would race to send the same rows. Moving the ledger
+to ClickHouse at scale: budgets would then depend on a store that's eventually consistent and loses buffered rows on a
+crash, and Postgres would need the rows anyway for the per-request cost ceiling and spend caps. ClickHouse's async inserts
+from each gateway: the copy already sends large batches, and async inserts acknowledge before the data is durable unless
+waited for. ReplacingMergeTree to drop duplicates: it only merges them away eventually, so exact reports would need
+`FINAL` on every query, and the rollup view would still have counted the duplicate. Insert deduplication by block hash: a
+repaired hour sends the same rows again and would be dropped as a repeat (every insert carries a unique token instead).
+Rows as JSON: ClickHouse 26.3 parsed some 17-digit costs to the neighbouring double, even with `precise_float_parsing`,
+so the reports drifted from Postgres's in the last bit; RowBinary sends each number's 8 bytes.
+The official ClickHouse driver: a dependency for a handful of HTTP calls. Dropping old Postgres partitions automatically
+once ClickHouse has them: destructive, and the operator should choose when (it's a documented `DROP TABLE`).
+
+**Revisit if:** Postgres's insert rate becomes the limit (about 10,000 rows/s; then the gateway could batch its own
+writes, or write to ClickHouse first with a durable queue), or measurements at scale show the copy can't keep up.
+
+## 48. Google Groups from the Cloud Identity API, as a service account with the Groups Reader role
+
+**Why:** Google organizations manage access with groups, as Entra ones do, but Google's ID tokens never carry groups,
+so decision 37 mapped teams and roles from addresses and domains: a list of people in the config that someone has to
+keep in step with the directory. Decision 37 left groups out because the Admin SDK needed domain-wide delegation. It
+doesn't any more: since 2020 a Workspace admin role can be assigned to a service account itself.
+
+**How:** The Cloud Identity Groups API v1, called as a service account holding the prebuilt Groups Reader admin role
+(read only, and it can be limited to security groups), with the narrowest scope, `cloud-identity.groups.readonly`. No
+domain-wide delegation, no impersonated admin. `searchTransitiveGroups` returns every group a person is in, nested ones
+included, in one call; Google offers it on Workspace Enterprise and Cloud Identity Premium only. Elsewhere it answers
+403, and if `searchDirectGroups` then works the gateway follows the nesting itself, one call per group, each group's
+parents kept for a refresh period. A 403 from both is a permission problem, reported with what to fix (role, scope, or
+API not enabled). Credentials: a service-account key from a file (re-read when it changes) or an environment variable,
+signed into a token with PyJWT, else the metadata server (GKE Workload Identity, Compute Engine, Cloud Run). The groups
+map with the same `team_from_groups` and `role_from_groups` as Entra's, keyed by group address. Team: exact address,
+then the first group in the list the person is in, then domain, then `default_team`; role: the highest any of them
+gives. Groups are read at sign-in and, for people using the gateway, again every `refresh_seconds` (60), one gateway
+doing each round. A change goes to the user record, which every gateway's key cache follows within a minute, as with a
+SCIM change. Each person's last reading is cached in Redis with the mapping that set their team. If Google can't be
+reached, the last known groups stand for `keep_last_known_hours` (24), then the email and domain rules apply alone;
+each step raises an alert. Sign-in and SCIM now share one mapping function, which takes the first group in the
+config's order (sign-in used to take the token's order).
+
+**Not chosen:** The Admin SDK Directory API (`groups.list?userKey=`) with domain-wide delegation: delegation lets the
+service account act as any user in the domain for the granted scopes, a broad trust for a gateway to hold, and the
+call lists only direct memberships, so nested groups take a call per group anyway. The Directory API with the role and
+no delegation: it works, but has the same nesting cost and accepts only its own `admin.directory.group` scopes, while the token GKE
+Workload Identity gives carries `cloud-platform`, which the Cloud Identity API accepts; keyless setups would need the
+IAM Credentials API to mint a scoped token. Transitive search alone: every Business edition would get 403s.
+`checkTransitiveMembership` for each mapped group: a call per mapped group per person, Enterprise only, and the People
+page couldn't show someone's groups. Listing the members of each mapped group instead of each person's groups: fewer
+calls for large organizations, but the transitive member listing is Enterprise only too, and the People page shows a
+person's own groups. Reading groups only at sign-in: a removal would wait for the key to expire. Dropping groups at the
+first failed lookup: a short Google outage would move people between budgets and take admins' roles. Keeping them
+forever: someone removed from an admin group during a long outage would keep the role.
+
+**Revisit if:** Google puts groups in ID tokens, or quotas bite for large organizations (then read the members of the
+mapped groups instead of each person's groups).
+
+## 49. Batch work fills running GPUs' headroom; batch demand never starts one; more providers' batch APIs
+
+Extends decision 45.
+
+**Why:** Decision 45 sent batch work only to providers' batch APIs, at about half price. A GPU deployment that's running
+is paid for by the hour, so a request that can wait costs it almost nothing while it has room, which is the shadow price's
+idea ([03](03-routing.md#shadow-price)). Decision 45 also left out Mistral's and other providers' batch APIs, embeddings
+batches outside OpenAI, holding uploads anywhere but Postgres, rotating the batch key while uploads wait, and batch results
+in Prometheus.
+
+**How:**
+
+- **GPUs, at the shadow price.** The router prices a batch request on a running GPU deployment at the shadow price for its
+  load now (2% of the route's price below the knee), against the providers' batch prices. When the GPU is cheapest it
+  gets the request, and the request's next route with a provider batch API is kept as its fallback, shaped for that
+  provider then. The requests can't wait at a provider, so the gateway holds them sealed until they run, and their
+  results until the retention period ends: the one place a batch's content is held past submission.
+- **Only in the headroom, at low priority.** The worker runs them a slice at a time, filling the deployment up to the knee
+  of `max_concurrency` × replicas and no further, counting the gateways' live requests and other workers' batch requests,
+  and none while vLLM's own load (less the batch work in it) is at the knee. Each goes to vLLM with `priority: 20`, after
+  free upgrades (10) and live requests (0), so vLLM preempts batch work for live traffic. Gateways don't count batch
+  requests as load, so live routing never moves to an API because of batch work.
+- **Before the deadline.** What hasn't run 12 hours in (`batches.gpu.handoff_hours`) goes to its fallback's batch API,
+  which has the other 12 hours of the 24-hour window; so does everything waiting when the deployment stops or drains, and a
+  request the GPU refuses or fails twice. A request with no fallback waits for the GPU until the batch's deadline.
+- **Priced as GPU work.** A GPU request's ledger row costs the GPU time its tokens took, as live GPU work does. The batch
+  discount is still its own cause (the model's API price less what a provider's batch API would have charged), and what the
+  GPU took off that batch price is self-hosting's. What's reserved against budgets is the fallback's estimate.
+- **More providers.** Mistral's batch jobs (chat and embeddings), Moonshot's (OpenAI's calls, a `1d` window, 40% off),
+  xAI's (its own API, 20% off for the models it lists), OpenRouter's (requests inline, results on the batch; only models
+  with a batch variant), and the Gemini API's `asyncBatchEmbedContent` for embeddings (one Gemini request per input, joined
+  back). DeepSeek, Z.ai and MiniMax have none. Azure's batch deployments take no embedding model, so its embeddings stay
+  out. Each API's published discount is the default when the price list has no batch price.
+- **Uploads in the operator's bucket.** `batches.storage.bucket` holds uploads and GPU work in S3, Cloud Storage or Azure
+  Blob Storage instead of Postgres, sealed as before, signed with the credentials the backends use.
+- **Key rotation.** Every sealed piece names its key. With the old key in `MERITORDER_BATCH_KEY_PREVIOUS`, what it sealed is
+  read for `batches.key_grace_days` (the retention period plus two days, the longest anything sealed before the rotation
+  is kept) from when a gateway first used the new key, recorded in the store so every process counts from the same moment.
+- **Prometheus.** Whoever settles a batch request counts it, once (only the rows its settling call newly wrote), in
+  `meritorder_batch_*` counters that the gateways' live counters never include: the worker serves them on its own port.
+  Schema migration 13.
+
+**How batch demand counts toward GPUs: it doesn't.** The break-even controller sizes and starts GPUs on live demand only,
+as before (batch rows were already left out of addressable demand). Batch work uses a deployment only while live demand
+keeps it running, and only its headroom. Why not count it:
+
+- It arrives in bursts and can be done within hours by a provider at half price. The controller's windows (an hour and 15
+  minutes), its 10-minute wait to start, a 10 to 20 minute cold start and a 30-minute minimum hold are for steady demand.
+  They'd start a GPU for a burst that's half done by the time it's ready, and keep it for one that's gone.
+- Its value is the batch price, not the live price, so even valued correctly it pays for a replica far less often. And the
+  ledger only sees it once it's settled, after the work is done, which is the wrong moment to size anything by.
+- Counting it would let batch work keep GPUs alive, as counting free upgrades would. Free upgrades are left out for the
+  same reason.
+
+So batch work never starts a GPU by itself, and never keeps one running: when live demand stops paying for a deployment,
+it drains and stops, and the batch work still waiting goes to the providers.
+
+**Not chosen:** Queueing batch requests in vLLM without counting slots: they'd hold KV cache that live requests then wait
+for, and push the measured load, and so live traffic's shadow price, up. Running batch work up to 100% of a GPU: live
+traffic's price would rise above the floor because of work that can wait. A GPU-only batch with no fallback by default:
+a GPU that stops would expire the batch. Handing off near the deadline (say at 23 hours): a provider's batch API promises
+24 hours, not one. Starting GPUs for pending batch work valued at batch prices: see above; the gain is small and the
+failure (a GPU started for work that's gone) costs a replica-hour. Re-sealing held content with a new key: the grace
+period already outlasts everything sealed before a rotation. Bedrock's OpenAI-compatible batch API: only OpenAI's gpt-oss
+models, which no Bedrock route here serves, over the same S3 input. Holding GPU results only until the client first reads
+them: clients read results more than once, as they do from the providers.
+
+**Revisit if:** batch work routinely waits for GPUs that are full (then a separate small deployment for batch work, or
+counting long-pending batch work at its batch price, may pay), vLLM's priority scheduling stops preempting reliably, or a
+provider's batch discount differs from what's published (the bills check shows it).
+
+**Changed** for 0.0.1: a provider's window starts when the job is handed to it, so a hand-off at 12 hours (or later, when a
+deployment stops) could finish after the client's 24 hours. The worker now asks a handed-on job again by the batch's
+deadline and cancels it there if it's still running; what the provider hadn't run expires. A GPU's fallback is therefore
+always a batch API the gateway can cancel, which leaves OpenRouter's out, and past the deadline nothing is handed on.
+
+## 50. AWS's CUR 2.0 and Azure's cost exports as bill sources, read by manifest; one source per bill
+
+**Why:** Decision 40 checks the ledger against Cost Explorer and Azure's Query API. Cost Explorer charges $0.01 a
+request, gives a day's total per model and kind of token, and has no model breakdown before September 2026; Azure's
+Query API is throttled, groups by two dimensions at a time, and puts Claude in Foundry on one Marketplace meter whose
+model is only in each record's tags. Many organizations already export both bills to storage for finance, with every
+line item: hourly, per resource and tag, each credit, refund and Savings Plan row.
+
+**How:** Two more source types. `aws_cur` reads AWS Data Exports' CUR 2.0 table from S3 and `azure_export` reads Cost
+Management's scheduled exports (FOCUS, or actual or amortized cost) from Blob Storage, as gzipped CSV or Parquet.
+They produce the same bill lines as the APIs, so matching, settle days, alerts, the GPU comparison and the report rows
+are shared. Both providers rewrite a whole billing period on each refresh and list its files in a manifest, so the
+unit of change is a manifest: each day comes from the newest refresh that covers it, a refresh whose manifest name
+and ETag haven't changed since the last fetch is skipped with its files, and a changed one replaces the stored lines
+of its days only. What was read is kept in the source's status. Each file streams to a temporary file and is read
+row by row in a thread, Parquet in batches (pyarrow, the `parquet` extra, not in the default image). A day is
+complete only up to the day before the last one the files have usage for, so an export that stops arriving shows
+partial days, not gaps. S3 is signed with botocore's SigV4 (S3's signer, which adds the payload hash); Blob Storage
+takes a `DefaultAzureCredential` token for storage or a SAS token from the environment or a file. Line items follow
+the documented schemas (CUR 2.0's table dictionary; FOCUS 1.0 to 1.2-preview; the EA and MCA actual-cost schemas,
+2026-10-01): Savings Plan usage counts at the On-Demand rate and its negation is an adjustment, like credits, refunds
+and taxes; costs are in US dollars where the export has a US-dollar column.
+
+**One bill, one source:** a day billed by both the API and the export would count twice in the totals, the alerts and
+the GPU comparison. The operator picks one per provider and account: the config refuses an `aws` and an `aws_cur`
+(or `azure` and `azure_export`) that are both enabled for the same backend, or both fetching GPU costs while a
+SkyPilot deployment exists, unless their `accounts` or `scope`s don't overlap. The error says to turn one off or split
+them.
+
+**When to use which:** Cost Explorer for a quick start or a small account: only an IAM permission, about $5 a month
+at the default schedule. The CUR export when the organization already has one, when there are many linked accounts
+or GPU instances to follow, or when Cost Explorer's price per request adds up; it costs only S3 requests and data
+transfer, but needs a bucket, a day for the first refresh, and a support case to backfill. Neither has per-request
+detail; the ledger is that. Azure's Query API for a scope that answers within its throttling; exports for large
+scopes, and for Claude in Foundry by model.
+
+**Not chosen:** The newer data replacing the older, per day, across an API and its export: the two name lines
+differently, so the report would switch line names, unmatched lists and token counts back and forth between
+refreshes, and which one a day came from would depend on timing. Preferring the export wherever it has the day: a
+silent rule that hides a misconfigured pair, and an export that stops being delivered would hand days back to the API
+mid-month. Reading every file on every refresh: a large account's month is gigabytes, read four times a day for
+nothing. Keeping each file's lines separately to rebuild a period: the providers rewrite the whole period at once,
+so the manifest is the natural unit and the existing replace-by-range storage needs no new table. Athena or Synapse
+queries over the exports: another service to set up and pay for, for files the worker can read itself. Parsing
+paths for dates and run ids: Azure's layout differs between API versions and AWS's between overwrite modes, while the
+manifests say what each run covers. Loading files whole: a CUR file can be several gigabytes.
+
+**Revisit if:** a provider publishes a stable manifest example that differs from what the parser accepts (AWS shows
+none; the parser takes `dataFiles` or any data file path in it), Azure documents the Claude meter's tags in its schema
+pages, or exports become large enough that range reads of Parquet's columns beat downloading each file.
+
+## 51. The Responses API's stored mode: opt-in per team, the gateway holds the conversation, sealed, for a retention the operator sets
+
+Revisits decision 5. **This is the one place the gateway holds conversation content.**
+
+**Why:** A client of OpenAI's Responses API can send only its new input and point at the turn before
+(`previous_response_id`), or at a `conversation`, and the provider keeps the rest. The gateway refused both (400), so
+those clients didn't work. What chains, as of November 2026, read from each project's source:
+
+| Client | Chains turns by default? |
+|---|---|
+| Microsoft Agent Framework (Python 1.26, .NET 1.28) | Yes: each response's id goes back as `previous_response_id`, also inside the tool loop. `store=False` turns it off |
+| Semantic Kernel for Python 1.47 | Yes (`store: true`). The .NET agent doesn't (`StoreEnabled=false`) |
+| OpenAI Agents SDK (Python 0.24, JS 0.22) | No: every call resends the input. It chains when asked (`previous_response_id`, `auto_previous_response_id=True`, `conversation_id`); `OpenAIConversationsSession` keeps history in the Conversations API |
+| Vercel AI SDK (`@ai-sdk/openai` 4.0) | No `previous_response_id`, but with `store` on (its default) it sends earlier turns' items as `item_reference` ids |
+| LangChain (`langchain-openai` 1.7), LlamaIndex, Pydantic AI, Haystack, CrewAI, LiteLLM | No; each can (`use_previous_response_id`, `track_previous_responses`, `openai_previous_response_id`, `auto_chain`, or passing it through) |
+| Codex CLI (rust-v0.169) | Not over HTTP: `store: false` and the whole input every turn. Over its WebSocket transport it chains; covered since decision 54 |
+| OpenAI's own guides | Show all three: the whole input with `store: false`, `previous_response_id`, and `conversation`. The Assistants API it replaces stopped working on 26 August 2026 |
+
+Holding conversations is what decision 5 avoids (retention, eDiscovery and breach liability), so this has to be
+something a team chooses, with a retention someone chose.
+
+**How:**
+
+- **Opt-in per team, with a retention the operator sets.** `stored_responses: {enabled, retention_days, readers}`.
+  `retention_days` is required, with no default, and counts from a chain's or conversation's last turn: every turn is
+  rebuilt from the ones before it, so a chain in use keeps all of them, and an idle one goes whole. Past it, content
+  is unreadable at once and the worker deletes it within a minute. A team with stored mode off keeps nothing: turning
+  it off deletes what it held. A background response sent with `store: false` is kept 10 minutes after it ends, to be
+  polled. In a team with stored mode on, `store` defaults to true, as at OpenAI; `store: false` stays stateless.
+- **The gateway holds the conversation, not the provider.** A turn that chains is rebuilt from what the gateway
+  stored: each earlier turn's input then output (or the conversation's items), then the new input, with only this
+  turn's instructions (OpenAI doesn't carry them over either). The rest of the pipeline sees only that stateless
+  request, so `auto` routes each turn on its own and may send turn 2 to another model or provider than turn 1, and a
+  failover sends the next route everything. Budgets and limits apply as for any request, each turn is one ledger
+  row, a chain stays in its first turn's session (stickiness and warm caches follow it), and the learned router sees
+  the rebuilt request. The client's input is stored as it sent it, before compression, so each rebuild gives the same
+  history and both compression methods cut it to the same bytes (model-based compression finds the decisions it
+  stored).
+- **When the provider's own chain is used.** Only on a backend with `api: responses` and `responses_store: true` (off
+  by default). Then a stored turn is stored at the provider too (`store: true`) and the gateway records the
+  provider's response id. The next turn goes as the provider's `previous_response_id` with only its new input when all
+  of these hold: it chains with `previous_response_id` (not a `conversation`); the turn before it ran on that same
+  backend (the same account) and upstream model, and the provider gave it an id; it's stored too; and the history
+  converts to exactly the messages the provider holds. That keeps OpenAI's reasoning items, which the gateway's
+  Chat Completions history has no place for. Leading system messages always go as `instructions` to a storing
+  provider, so they're never part of what it holds and never sent twice. In every other case the turn gets the whole
+  rebuilt conversation: another provider or model, a failover, a conversation, a backend without `responses_store`,
+  and a provider that no longer has the turn (it answers 400 and the gateway sends everything on the same route). A
+  provider continuing its own response counts context the gateway didn't send, so those prompt counts don't
+  calibrate token estimates. With `responses_store`, the provider holds the content for its own retention (OpenAI:
+  at least 30 days), and the gateway deletes the provider's copy whenever it deletes its own.
+- **Sealed at rest, with rotation.** Each response (the object the client got and the input sent with it), each
+  conversation's metadata and each conversation item is sealed on its own with AES-256-GCM, keyed by
+  `MERITORDER_RESPONSES_KEY` or a mounted file. Each value starts with its key's public id (8 bytes of a hash of the
+  key), and its associated data names its kind, id, owner and team, so a value copied into another row doesn't open.
+  Old keys in `MERITORDER_RESPONSES_OLD_KEYS` still open; the worker seals everything again with the current key, 500
+  values a minute, and Config → Teams counts what still needs an old one. Owner, chain, status, where a turn ran, the
+  provider's id, item ids (random) and sizes stay in the clear, like the ledger.
+- **Scoped to the person and team.** A response or conversation belongs to the person and team whose key made it.
+  Nobody else can read, list or chain from it, admins included, unless the team names their role in `readers`
+  (admins from any team, other roles on the same team). Only the owner deletes. Disabling someone on the People page
+  or through SCIM (deactivated or deleted) deletes everything they stored, and the providers' copies. An
+  `item_reference` resolves from the chain or conversation, else from anything that person stored.
+- **The API, as OpenAI's reference has it** (openai-python 3.42 to 3.50): `store`, `previous_response_id`,
+  `conversation` and `background` on create; `GET` and `DELETE /v1/responses/{id}`, `POST .../cancel`,
+  `GET .../input_items` (the chain's earlier items, then the response's own input, newest first by default); and
+  `/v1/conversations` with its items. Deleting a conversation deletes its items too, which OpenAI doesn't. Background
+  responses run in the gateway that took them, are polled, and are marked failed when that gateway stops (after
+  `background_timeout_seconds`). Schema migration 14.
+- **Visible.** Config → Teams has the switch, the retention and the readers, and each team's counts and sealed size;
+  the Teams page shows the same, never content. The People page says disabling someone deletes what they stored.
+
+**Not chosen:** Forwarding `previous_response_id` to OpenAI every time, so the provider holds the conversation: `auto`
+couldn't send a turn anywhere else, a failover would lose the history, and other providers have no such API. A
+default retention (OpenAI's 30 days, say): content would be kept because nobody decided otherwise. A retention per
+response from its own creation, as OpenAI has it: a long chain still in use would lose its first turns, and the
+gateway, which rebuilds every turn from them, couldn't continue it. Storing each turn's whole context as a snapshot:
+simpler to read, but storage grows with the square of a chain's length. Storing what went upstream (compressed,
+translated): the next rebuild would differ from what a client resending its conversation sends, so caching and
+compression would behave differently from the stateless path. Redis: it evicts under memory pressure and isn't
+backed up like Postgres; content shouldn't disappear before its retention, nor live in a cache. One key without ids:
+rotating it would make everything unreadable at once. Letting admins read everyone's: decision 19's roles are about
+spend and settings, not people's conversations, so reading them takes an explicit grant per team. Keeping a person's
+responses after they're removed: no one could read them, and they'd outlive the person's access. Keeping a deleted
+conversation's items, as OpenAI does: deletion here means the content is gone. Streaming a background response and
+resuming it (`starting_after`): it would need every event stored; polling covers what background mode is for.
+
+**Revisit if:** clients chain over the Responses API's WebSocket transport through gateways (Codex CLI, OpenCode), a
+provider other than OpenAI offers stored responses worth continuing, or teams need content kept in their own store
+(a bucket, a KMS-wrapped key) instead of the gateway's database.
+
+## 52. Judged labels for the learned router: sampled in flight, replayed in the background, metered as the team's own
+
+**Why:** The learned router's labels (decision 44) are weak and one-sided: most answers get no signal, and a missing
+signal isn't a success. Where signals are rare, it can't learn which requests are harder than the rules say. A judge that
+reads an answer next to a stronger model's says whether it was good enough either way.
+
+**How:** Off by default and per team (`teams.<name>.judged_labels`), and only while the learned router records requests.
+An admin chooses, for the team, the sample rate (1% by default), the stronger model (or `auto` at a level, 5 by default),
+the judges (the evals' tier-matched panel by default) and a monthly cap, which has no default. A request is sampled when
+it arrives, while its prompt is in memory, and its answer is kept as text once it's complete. When the request's row is
+written, the replay is scheduled in the background: the client never waits, and a replay that can't start within a minute
+(`window_seconds`) is dropped. Nothing of the prompt or the answers is stored: only the judge's verdict, on the request's
+`route_features` row next to its hashed features (schema migration 16). The replay and the judging are requests through
+the gateway's own pipeline as an internal client of the team (`judged-labels:<team>`): routed within the team's allowed
+models and backends, metered and tagged `judged_label` in the ledger, stopped by the team's and the organization's
+budgets as anyone's requests are, never counted as savings, and never recorded for training. The cap is that client's
+month: no sample starts once it's spent, and one that started finishes. The judge is the first of the panel whose family
+is neither answer's model's. It gets the conversation and the two answers in random order, says whether each was good
+enough, checking each against the other, and which is better. The label is whether the answer the request got was good
+enough. Verdicts join training as observations of their own, with a tag that moves only how often a failure is seen, and
+a weight from how well they agree with the outcome signals on the same requests (Youden's J: of the judged answers with a
+signal, the share the judge failed, less the share of the rest), shrunk towards the weakest signal's weight while few
+judged answers have a signal. The held-out check against the rules stays on outcome labels. Before it's turned on, the
+console shows the expected monthly cost from the team's recorded traffic of the last 14 days, priced at each request's
+size (long-context prices apply), says it can run three times higher, as eval estimates do, and wants an explicit "I
+understand" above $1 a month. Reports → Learned router shows how many labels there are, what they cost (from the ledger),
+how far they agree, each team's month against its cap, and how often the judge preferred the answer shown first. The
+worker alerts at 80% and 100% of each cap.
+
+**Not chosen:** Storing sampled prompts to replay later (in the worker, or through a batch API at half price): content at
+rest, against decision 5, for a label that can be had seconds after the answer. A judge grading the answer alone against
+the prompt: a judge misses the mistakes it would have made itself, and a stronger answer shows what was possible. The
+judge's preference as the label ("the stronger one is better"): as decision 44 said, a judge preferring one answer
+doesn't mean the other failed; the preference is kept only to check the judge. Two judges that must agree, as evals grade
+open-ended tasks: twice the cost of every sample, for a label that's weighted by its agreement anyway. Grading both
+orders: twice the judge's cost; a random order removes the bias on average, and the report shows whether there is one. A
+fixed weight for judged labels: nothing says how well a given judge matches what a given organization's people do; the
+agreement does. The cap as the internal client's monthly limit on each request: the judge of the last sample would be
+refused after its replay was paid for, leaving no label. Training on the replays as traffic: the learned router would
+learn from its own requests, whose level is the floor they were sent with.
+
+**Revisit if:** verdicts turn out not to agree with what people do on real traffic (J near zero); samples cost much more
+than estimated; or the default stronger side (`auto` at level 5) proves the wrong one to compare with.
+
+## 53. Claude's 1-hour cache from a session's second turn, priced at its own write price
+
+**Why:** Claude's prompt cache lasts 5 minutes from the last read. A person who steps away for 10 minutes, or a tool that
+runs that long, comes back to a cold cache and pays to write the whole conversation again (1.25x input on, say, 100,000
+tokens). Claude's 1-hour cache avoids that for 2x input on each write instead of 1.25x. Separately, the ledger priced
+every cache write at the 5-minute price, so the 1-hour writes Claude Code already asks for (on its system prompt) were
+under-costed.
+
+**How:** The four Claude backends in the shipped config (Anthropic, Bedrock, Vertex AI, Foundry) set
+`cache_ttl_seconds: 3600`. Where the client set no cache markers, the gateway's own marker asks for an hour from a
+session's second turn; the first gets 5 minutes. A client's own markers are left alone. Cache writes are priced by
+lifetime from Claude's usage (`cache_creation.ephemeral_1h_input_tokens`) at the route's `cache_write_1h` (LiteLLM's
+1-hour price, or 2x input); where a platform reports no split and every marker asked for an hour, all writes are 1-hour
+ones. A session counts as warm for as long as its last marker asked, and the router prices new tokens on a backend set to
+an hour at the 1-hour price. Evals and judged labels count no caching savings, as they already counted no routing
+savings, and the eval runner's agent loop asks for 5 minutes itself.
+
+**Not chosen:** An hour on every turn: a one-off request (a script, a single question) would pay 2x input to write a cache
+nobody reads, against 1.25x today. Deciding per session from how often it pauses: the second turn is the first point the
+gateway knows a session comes back, and the extra per turn is small next to one rebuild. Raising a client's own 5-minute
+markers to an hour: the client chose them (and a top-level marker beside them with another lifetime gets a 400).
+Marking the eval runner's Chat Completions requests to Claude: there's no standard field for it, and a native OpenAI
+backend could refuse one; not counting evals' caching savings covers every route.
+
+**Revisit if:** the ledger shows sessions on Claude rarely pause between 5 and 60 minutes (the hour then costs 12-30% more
+per turn for nothing, depending on the model's read price), or a platform starts refusing 1-hour markers.
+
+## 54. The Responses API over WebSocket: chained on the connection from memory, HTTP upstream; compaction written by the gateway
+
+Revisits decision 51 (its "revisit if": clients chain over the WebSocket transport through gateways).
+
+**Why:** Codex CLI, and OpenCode, keep one WebSocket open to `/v1/responses` and, from their second turn, send only the
+new items with `previous_response_id`, always with `store: false`. OpenAI keeps the latest response of each stream of a
+connection in memory to make that work. Through the gateway they fell back to HTTP and resent the whole conversation
+every turn. OpenAI's reference also has `POST /v1/responses/compact` and `POST /v1/responses/input_tokens`, which
+clients call and the gateway didn't answer. What was followed: OpenAI's WebSocket mode guide and event reference, and
+the compact and input-token references (read 15 November 2026, openai-python 3.42 to 3.51), and Codex CLI's source
+(`codex-rs`, `main` of that day).
+
+**How:**
+
+- **One pipeline.** `wss://<gateway>/v1/responses` takes `response.create` events (the HTTP body, flat) and sends back
+  the SSE stream's events, one per message. Each turn goes through `Gateway.respond`, the same function as
+  `POST /v1/responses`: the key checked again for each turn, budgets and caps, routing, sessions (Codex's `session-id`
+  header is now a session header, over HTTP too), compression, translation, one ledger row, and stored mode.
+- **Chaining on the connection, from memory, without stored mode.** For each stream (`stream_id`), the gateway keeps
+  its latest response's whole conversation, input and output, in the connection's memory. It drops it when the
+  connection closes, when a newer response on that stream replaces it, or when a turn chaining from it fails. A turn
+  chaining from it is rebuilt into the whole conversation before anything else sees it, as stored mode does, so `auto`
+  still routes each turn on its own, and caches, compression and the learned router see what they see from a client
+  that resends everything. Anything else gets `previous_response_not_found`, which Codex answers by resending
+  everything. Nothing is written anywhere, so decision 5 holds: it's content the client is sending anyway, held while
+  it keeps the connection open. Responses kept in stored mode chain from what was stored, from any connection.
+- **HTTP upstream, OpenAI included.** The connection ends at the gateway, and each turn goes to the backend chosen for
+  it the way that backend takes requests. A backend with `responses_store` still continues its own stored response in
+  stored mode (decision 51).
+- **The rest of the protocol, as OpenAI has it.** `generate: false` prepares a turn with no model call and no ledger
+  row (Codex's warm-up). Streams run side by side, each in order, up to OpenAI's 32 named ones. `background` is
+  refused. Codex's `response.interrupt` (in its source, not OpenAI's docs) stops the running response. Steering isn't
+  supported. No time limit on a connection. A message may be as large as an HTTP body, and the handshake says so
+  (`x-codex-websocket-max-message-bytes`), since Codex then sends larger requests over HTTP. `websockets` is now a
+  dependency: uvicorn serves WebSockets only with it.
+- **Compaction written by the gateway.** `POST /v1/responses/compact` returns what OpenAI's does (the user messages,
+  then one `compaction` item), but the summary is written by a model the router picks, routed like Claude Code's
+  compaction summaries (`routing.request_class_levels.compaction`), admitted, and metered (tagged `compaction:
+  responses`). The item holds the summary, encoded and prefixed (`mo1.`), and a later turn reads it as a user message,
+  on any backend. An OpenAI compaction item, and `compaction_trigger`, get a 400 instead of being dropped.
+- **Input tokens** are the gateway's estimate for the model, calibrated by providers' counts.
+- **`meritorder setup codex`** writes a `meritorder` provider into Codex's `config.toml` (`wire_api = "responses"`,
+  `supports_websockets = true`, the key read from the key file by an `auth` command), and the model with its window.
+
+**Not chosen:** Passing the WebSocket through to OpenAI when OpenAI is chosen: OpenAI's connection would hold the
+conversation, so a turn routed anywhere else, or a failover, would have nothing to send; it would also take an upstream
+connection per client connection, and metering from a stream the gateway doesn't convert. What it would save is
+OpenAI keeping its state warm between turns, which prompt caching and `responses_store` mostly recover. Requiring
+stored mode for chaining over WebSocket: Codex sends `store: false`, and the content would sit in Postgres for nothing.
+Keeping every response of a connection: Codex only chains from the latest, and OpenAI keeps no more. OpenAI's 60-minute
+limit per connection: nothing at the gateway wears out over time, and the key is checked every turn. Forwarding
+compaction to OpenAI's `/responses/compact` when an OpenAI model is named: its item is unreadable everywhere else, and
+the next turn of an `auto` session may go anywhere. Encrypting the gateway's compaction item: every gateway would need a
+shared key, which stateless teams don't have, to hide the client's own conversation from the client. Resuming
+background streams (`starting_after`): background responses don't stream here, and a resumable stream means keeping
+every event, content included, where any gateway can replay it (decision 51 said no to that). `compaction_trigger`
+(compaction inside a turn): Codex sends it only with `remote_compaction = "v2"`, off for custom providers.
+
+**Revisit if:** Codex turns remote compaction on for custom providers, or starts depending on steering; OpenAI's
+WebSocket state turns out to save much more than HTTP with prompt caching (measured per turn on Codex traffic); or
+clients need to resume background streams.
+
+## 55. AGPL-3.0-only license
+
+**Why:** The owner wants anyone to be free to run Merit Order, change it, and use it inside their own organization at no
+cost, and wants changes that others are offered over a network to come back. A gateway is
+almost always used over a network, so a license whose conditions start only when copies are handed out (the GPL, or the
+permissive licenses) would let a hosted, changed version stay closed. The AGPL's section 13 covers exactly that case:
+whoever lets people use a changed version over a network must offer those people its source. Running it unchanged
+adds nothing beyond keeping the notices, and a changed version owes its source only to the people who use it.
+
+**How:** `LICENSE` holds the GNU AGPL version 3, and every place that names the license (pyproject.toml, the UI's
+package.json, the Helm chart's annotation, the images' `org.opencontainers.image.licenses` label, `NOTICE`) says
+`AGPL-3.0-only`. It's "-only", not "-or-later": a future AGPL version from the Free Software Foundation doesn't apply to
+Merit Order automatically; moving to one would be a decision of its own. The console's footer and `GET /about` link to
+the source (`console.source_url`), so an operator running a changed version can meet section 13 by pointing it at theirs.
+The console's bundled packages keep their own (mostly MIT) licenses, and the build writes their notices beside it.
+
+The copyright holders can still offer Merit Order under other licenses as well, for example a commercial
+one to a company that can't take the AGPL. That only covers code the holder owns. Contributions come in under the
+Developer Certificate of Origin (CONTRIBUTING.md), which licenses them under the AGPL and nothing else; offering
+outside contributions under other terms too would need a Contributor License Agreement from their authors, signed
+before (or for) those contributions. There's none today.
+
+**Not chosen:** a permissive license (MIT, BSD and similar): a company could run a changed gateway as a
+service and keep the changes. AGPL-3.0-or-later: it hands the choice of future terms to someone else. The Server Side
+Public License or the Business Source License: not open source by the OSI's definition, and they restrict use rather
+than ask for changes back. A CLA from the start: a barrier to the first contributors for a choice nobody has made yet.
+
+**Revisit if:** companies that would contribute can't use AGPL software at all (then dual licensing, which needs a CLA
+for outside code), or a later AGPL version fixes something that matters here.
+
+## 56. SkyPilot as plain clusters, one per replica, each behind a keyed gate with a dead-man lease; no SkyServe
+
+**Why:** SkyServe's controller is a VM of its own. It can't run where Merit Order's controller runs, it stays up while
+any service does, and it was priced in neither the ledger nor the budgets; on Lambda, which has only GPU machines, it
+would bill at GPU rates. It also did what Merit Order already does: the break-even controller decides replica counts,
+the gateways balance load with replica affinity (decision 39), and the controller probes health. And nothing stopped a
+GPU whose controller had died: a laptop that sleeps, a lost `~/.sky` or a crash left replicas billing until someone
+noticed. Separately, a failed start or scale marked the deployment off with no teardown, so whatever it had launched
+ran on untracked.
+
+**How:** Each replica is its own SkyPilot cluster, launched with `sky.launch` and torn down with `sky.down`, named
+`mo-<install id>-<deployment>-<n>`; the install id is made once and kept in Postgres. SkyPilot still finds capacity
+across clouds and regions, sets the machine up and prices it. The SkyPilot task runs a small gate in front of vLLM (on
+the loopback address): the only thing on the open port, it lets in only the deployment's key (an HMAC of a secret kept
+in Postgres and the deployment's name, which every gateway works out) and holds a lease the controller renews every
+cycle. When the lease runs out (15 minutes), the gate stops vLLM, the task ends, and SkyPilot's autostop, always with
+`down` and waiting for jobs only, deletes the machine 5 minutes later. That happens on the machine, so it holds whatever
+became of the controller. Every cycle a sweep tears down this install's clusters that no deployment wants. A failed
+start is torn down before its cooldown, or kept tracked as running and stopped every cycle; a failed scale keeps what
+ran and tries again. Regions pair only with their own cloud, from the catalog, so the launch goes where the price came
+from. Where a replica's port can't be reached (Lambda's `us-south-1`), the controller tunnels to it over SSH.
+
+**Not chosen:** Keeping SkyServe, with its controller VM priced: it would still duplicate the controller and the
+gateways' replica choice, and still not stop a replica whose controller is gone. SkyPilot managed jobs: another
+controller VM. vLLM's own `--api-key`: it covers only paths under `/v1` (leaving `/metrics`, `/invocations` and others
+open), and passing the key through SkyPilot puts it in its API server's request database; the machine gets only the
+key's hash. A watchdog that shuts the machine down by itself: a powered-off VM still bills on several clouds, while
+SkyPilot's autodown deletes it with the credentials it already put there. Renewing the lease over SSH (`sky exec`): it
+needs SkyPilot's state, which is what may be lost. A lease token separate from the key: the controller holds both, so it
+would protect nothing more.
+
+**On every cloud (later):** the chain was first checked in SkyPilot's source for Lambda only; it was then audited for
+every cloud SkyPilot 0.14.2 supports (docs/05, "Which clouds"). A replica needs Docker images and autodown, so a
+deployment naming a cloud without either (OCI, Cudo, Shadeform, SCP, vSphere, IBM; Hyperbolic, PrimeIntellect, Verda,
+Yotta) is refused when the config loads, rather than run without the dead-man switch or with a hand-rolled one. Where
+SkyPilot opens no ports (Vast, Mithril, Slurm) the task asks for none and the replica is tunneled; where it maps them
+(Kubernetes, RunPod) the controller asks SkyPilot for the address. The controller sets autodown again on a cluster that
+shows none, and warns about each long-lived key SkyPilot copies to the machines, which on most clouds is what the
+machine deletes itself with.
+
+**Revisit if:** the real-cloud check (`scripts/skypilot_check.py`) finds autostop doesn't delete a machine whose task
+ended (on Lambda or elsewhere), or a launch interrupted before autostop is set (SkyPilot sets it after provisioning)
+turns out to leave machines behind often enough that the window matters; SkyPilot gains a way to set autodown before
+provisioning; or fleets grow past what one controller can renew each cycle.
+
+## 57. Codex CLI's tools on every backend: custom tools as one-string functions, hosted tools left out where there's no equivalent
+
+**Why:** Codex CLI works through the gateway over the Responses API (decision 54), but a turn that `auto` or a named
+model sent to Claude, Kimi or Qwen kept only plain function tools. Codex's namespaced tools (sub-agents, MCP servers)
+vanished, so did `tool_search` and its custom (freeform) tools: `apply_patch` for the models its catalog knows, and Code
+Mode's `exec`. Responses-lite turns (Codex's GPT-5.6 and GPT-6 entries) declare their tools in `additional_tools` input
+items, which were read as an empty developer message. A backend with `api: responses` lost them too, since every turn
+goes through Chat Completions inside the gateway. What was followed: OpenAI's Responses API reference (custom tools,
+namespaces, tool search, local shell, hosted tools; read 15 November 2026) and Codex CLI's source (`codex-rs`, `main` of
+that day: `tools/src/tool_spec.rs`, `protocol/src/models.rs`, `core/src/tools/spec_plan.rs`,
+`model-provider/src/capabilities.rs`, `models-manager/models.json`).
+
+What Codex sends a custom provider: function tools (`exec_command`, `write_stdin`, `view_image`, `request_user_input`,
+MCP tools), `namespace` tools, `tool_search` (`execution: "client"`) for models whose catalog entry has it, `web_search`
+(`external_web_access: false` unless the user chose live search), and `apply_patch` as a custom tool with a Lark grammar
+only when the model's catalog entry asks for it. A model name Codex doesn't know (`auto`, `claude-sonnet-5-5`) gets
+fallback settings with no `apply_patch`, so it edits through its shell. `image_generation` needs OpenAI's own sign-in,
+and `local_shell` is no longer a tool type in Codex, though its call items can still be in a conversation's history.
+
+**How:**
+
+- **Every tool the model can call becomes a function tool** (`formats/responses_tools.py`): a custom tool takes one
+  string argument, `input`, and its description says so, then gives the grammar; a namespaced tool is named
+  `namespace__name` (joined directly for a namespace ending in `_`, as Codex's MCP namespaces do), its namespace's
+  description first; `tool_search` and `local_shell` keep their parameters. The tools a search found join the
+  request's tools. Deferred tools (`defer_loading`) are sent up front, since only OpenAI defers.
+- **Calls go back as the client's items.** The Chat Completions body carries a private key (`TOOLS_KEY`) saying which
+  function stands for which tool; the reply converters read it, and no backend is sent it. A custom tool's call is a
+  `custom_tool_call` with the raw input; streamed, the JSON string is decoded as it arrives into
+  `response.custom_tool_call_input.delta` events. Arguments of another shape (a model that wrote the raw text, or used
+  another key) still give the right input, at the end.
+- **History is deterministic.** Each call item converts to the assistant's tool call with its arguments as compact
+  JSON, and its output to a tool message: the same bytes every turn, so the prompt prefix and the gateway's cache
+  shaping (decision 53) hold. Images in a tool's output follow the turn's results as a user message, which both Chat
+  Completions (text-only tool messages) and Claude (tool results first) accept.
+- **A backend with `api: responses` gets the tools as they came,** `additional_tools` merged into `tools` (the public
+  API's place for them), and the call and output items in their own types.
+- **Hosted tools.** Claude gets live web search as its own server tool (`web_search_20250305`: every Claude model and
+  Vertex AI have it; Bedrock has none), with the allowed domains and the user's location; the ledger already prices it
+  per search. Everything else is left out, named in `x-meritorder-dropped-tools` and logged. Codex's default search,
+  cached-only, is among them.
+- **Routing:** the translated tools are function tools, so the classifier counts them as it counts any request's tools
+  (coding, and agentic coding from five tools). The router has no per-model flag for tool calling: a chat model in the
+  configuration is taken to call tools, as it already was for Claude Code's and the Chat Completions API's tools.
+
+**Not chosen:** Mapping Codex's cached-only search to Claude's live search: the user (or Codex's default) chose not to
+read live pages, the usual way untrusted text gets into an agent, and live search costs $10 per 1,000 searches nobody
+asked for. Web search on Chat Completions providers (OpenRouter's plugin, search-preview models): each is a field of
+one provider, and Codex can still fetch pages with its shell. Claude's newer `web_search_20260209` (dynamic filtering):
+newer models only and not on Vertex AI, and a route's model generation isn't known here. Passing the Responses body
+through to OpenAI untranslated: the rest of the pipeline (compression, cache shaping, failover to another provider)
+works on Chat Completions; restoring the tools and items keeps OpenAI's freeform tools without that. Turning Claude's
+searches into `web_search_call` items for the client: the Chat Completions layer has nowhere to carry them, and the
+answer's text is what Codex shows.
+
+**Revisit if:** Codex gives `apply_patch` to models its catalog doesn't know, or the gateway serves Codex a model
+catalog (`model_catalog_url`) that turns it on for `auto`; Claude gets a cached or indexed-only search; Claude's dynamic
+web search reaches every platform; or Chat Completions providers start taking grammars for tool input.
+
+## 58. Quality scores on a fixed bar: a 5 is a fixed chance on the reference, not the best model you have
+
+**Why:** The default scale (`best`) made a score 5 × a model's chance on the reference work ÷ the best configured model's.
+A new frontier model then lowered every other model's score though none of them got worse: the same request moved to
+dearer models with each release, and cost crept up. With three models at a 70%, 50% and 45% chance, the 45% one scores
+3.2 and takes coding:3 work; add one at 95% and it scores 2.4, the 50% one 2.6, the 70% one 3.7, and the same request goes
+to the 70% model at ten times the price (`tests/test_quality_drift.py`). Cost per success drifted the same way: chances at
+each level are read back from the scores, with a 5 standing for the best model's chance.
+
+**How:** `quality.scale: absolute`, the new default: 5 × the chance ÷ `quality.anchor`, a fixed chance per task type,
+at most 5 and at least 1. The default anchors are Claude Fable 5.2's chances on 12 November 2026 (0.6994 for coding, 0.7685
+for general work), so no score changed on the day. `apply_chances` reads a 5 as the anchor, so a model exactly at a level
+solves that level's work as often as the anchor solves the reference, release after release. A configuration that sets
+`best` or `range` keeps it. Scores stored on another scale or anchor are worked out again from the chances stored with them
+when a configuration loads (`config.live_section`), so switching takes effect without waiting for the worker; the admin
+view no longer calls a scale change stale.
+
+**Not chosen:** Epoch's ability scale (ECI) directly with fixed thresholds per level: it's equivalent (the chance is a
+monotone function of ability for a fixed reference), but a chance reads more plainly, and the anchor keeps today's
+numbers. Letting scores pass 5 for models above the anchor: every level check, the console and the evals' measured scores
+assume 1 to 5; a model above the anchor meets every level, and only cost per success undercounts its chance at level 5 a
+little. Re-anchoring automatically each quarter: that's the drift again, slower.
+
+**Revisit if:** most traffic needs models above the anchor (level 5 no longer separates them; raise the anchor and let
+every score fall once, on purpose), Epoch refits FrontierSWE's difficulty so a chance no longer means what it did, or the
+reference benchmark changes.
+
+## 59. Your own traffic as the routing benchmark: exploration opt-in per team, coding outcomes from tool results, a two-sided report
+
+**Why:** Published scores say how good a model is on someone else's tasks; whether a level is right for this
+organization's work, and whether a newly cheap model does as well on it, only its own traffic can say. The learned router
+can move requests between levels but, by construction, can't tell that a whole level is too high or too low; and its
+labels are rare (most answers get no signal). Without a randomized comparison, outcomes by level are confounded: harder
+work is sent higher.
+
+**How:**
+
+- **Coding outcomes** (`outcomes.py`): the gateway already reads an agent's next request, which carries its tool results.
+  Only the new turn is read: edits (Claude Code, Codex's `apply_patch`, pi), test and build runs known by their command,
+  their verdict from the runner's summary or the exit code, fix loops (three edits to one file each right after a failed
+  run), turns and tokens to the end of the task, and a correction in the next prompt matched by a short rule list. Only
+  counts, flags and rule names are kept (the `coding` column; paths hashed in the session's state only). They join the
+  labels: corrected 0.7, tests failing at the end 0.5, build broken 0.4, fix loop 0.3; tests passing at the end cancel the
+  last two. About 20 µs a turn; on `scripts/bench_load.py`, 0.06 ms more CPU on an agent turn that grows a test run each
+  request.
+- **Exploration**, off by default per team (`teams.<name>.exploration`): 4% of eligible task starts, half a level down
+  and half up, drawn where the router picks a model anyway and no cache is warm, so no prompt cache is lost. Never for a
+  named model, a client's `X-Route-Floor`, Claude Code's capped side requests, batches, evals or the gateway's own
+  requests; never outside the team's models; never up past 90% of a budget; never into a refusal by the per-request
+  limit. The arm, the level it would have had and the arm's chance go on the task's `route_features` row; every request of
+  an explored task is tagged `explore` and `explore_from`.
+- **Canaries**: the worker (`benchmark.Watcher`, every 15 minutes) notices a model newly cheapest at a level or newly
+  qualifying for it, and exploring teams give it 20% of the level's task starts and none of the rest until it has 30
+  recorded there (or 14 days); an alert says so.
+- **The report** (Reports → Levels, `GET /v1/reports/levels/outcomes`): per task type and level, traffic and spend share
+  and success by arm, each task start weighted by 1 ÷ its arm's chance (Hájek), so teams with different shares and
+  canaries pool without bias. Too high: the level below's rate as a share of the served one's; too low: the level above's.
+  A recommendation needs 200 task starts a side and a difference clear at 90% (at least 95% as good, or clearly better).
+  An admin applies it to `routing.level_map` as a new configuration version, or the worker does with
+  `routing.benchmark.auto_apply` when the learned router's model in use beat the rules and leans the same way. A new
+  recommendation alerts once. The trend marks catalog and score changes.
+
+**Not chosen:** Exploration on by default: it knowingly sends some work to a weaker model and some to a dearer one, and
+the learned router (which records outcomes) is off by default too, so it would do nothing but change routing. Exploring
+mid-task or wherever a cache is warm: a level change moves the model, and rebuilding a long prompt costs more than the
+information is worth. Bandits (Thompson sampling, adaptive shares): better regret, but adaptive propensities make the
+comparison harder to read and audit; a fixed small share with recorded propensities is simple and unbiased. Plain
+stratified means: equivalent within a team, but teams can explore at different shares, and canaries change the arms'
+chances; inverse-propensity weighting covers both with one formula. Weighting the learned router's training by inverse
+propensity: weights of 50 on explored rows would swamp the fit; its features already condition on the work, and explored
+rows simply give it models above and below the level, which is what it lacked. Storing commands or test names: hashes of
+short strings are guessable, and counts are what the labels need. An LLM to read tool output: a regular expression per
+runner costs microseconds; a model call per turn would cost more than some answers.
+
+**Revisit if:** recommendations are applied and the served level's outcomes get worse (the "success" proxy isn't what
+people mean), 4% doesn't reach 200 task starts per arm in a quarter at real volume, the coding signals turn out mostly
+noise for one client (Codex's exit codes, pi's output), or a level's work is so mixed that one move for all of it is wrong
+(then the learned router, not the level map, is the tool).
+
+## 60. The 1-hour cache credited with the pauses it bridges, from each team's observed pauses
+
+**Why:** Decision 53 priced the direct Claude backends' later turns at the 1-hour write price but didn't count what the
+hour saves: a later turn after a pause of 5 to 60 minutes rewrites a 5-minute cache and not an hour's. A new Claude Haiku
+session was about 5% cheaper on OpenRouter over three turns, above the `cost` priority's 2%, so it went there, whatever
+the pauses. Decision 53 said to revisit this with pause data.
+
+**How:** Every gateway counts its sessions' later turns per team, and those that came 5 to 60 minutes after the turn
+before (`pauses.py`), halves the counts every 7 days, and saves them every minute with the token calibration (setting
+`session_pauses`, one entry per gateway, summed by all; a gateway gone 30 days is dropped). The share expected for a team
+is its own, shrunk towards the organization's, which is shrunk towards a prior of 0.10, each by 100 turns. `Router.estimate`
+adds, to each later turn on a route whose cache lasts under an hour, that share of a rebuild (cached tokens × (write −
+read)); routes set to an hour get none, GPUs (which evict by pressure, not time) none, batches none. At the prior, a new
+Haiku session at 30,000 tokens is $0.0060 on the direct backends against $0.0064 on OpenRouter, so it starts there; a team
+whose sessions rarely pause (under about one later turn in twenty at that size) goes back to OpenRouter.
+
+**Not chosen:** A fixed share in the configuration: pauses differ by team (people reading diffs against unattended
+agents) and drift. A full pause distribution (rebuild chance by gap): only the 5-60 minute band changes the comparison;
+pauses over an hour rebuild everywhere. Per-session shares: a session's own history is a handful of turns, and the
+decision is at its start. Counting it in Redis per request: an in-process counter saved each minute costs nothing per
+request, and the share is a slow average anyway.
+
+**Revisit if:** the measured share is far from the prior for most teams (move the prior), providers change cache
+lifetimes (OpenAI's automatic caching, or Claude's 5-minute default), or the hour starts to be offered elsewhere.
+
+## 61. Tools say the work is coding; the task's wording sets the level
+
+**Why:** Any request with five tools or more (`agent_tools`) was level 4. Claude Code and Codex CLI send dozens of
+tools on every request, so every task a coding agent did on `auto` was level 4 or 5, whether it was a typo or a
+redesign: writing tests, renaming, adding a docstring all went to GPT-6.1 Terra or Fable, and the models that do that
+work well for a tenth of the price never got it. A tool count says which client sent the request, not how hard the task
+is. The wording also came partly from the harness: Claude Code puts CLAUDE.md in a system reminder in the first user
+message and Codex sends AGENTS.md as one, so a project whose instructions say "run the tests" or "read the architecture
+doc" gave every task the level of those words.
+
+**How:**
+
+- Tools (or code-like text) make a request `coding`, at `coding` (3). The task's wording, from the last two prompts
+  as before, then sets the level, the hardest list that matches winning: `hardest_words` (architecture, "design a/the",
+  system design, proofs, codebase-wide refactors) puts it at `hardest` (5); `hard_words` (race conditions, deadlocks,
+  concurrency, security, migrations, performance, multi-file or cross-cutting changes, and symptoms of a cause not yet
+  found: "under load", "at random", "on retry", "when two requests…", flaky) raises it by `hard_raise` (1) for each
+  distinct pattern it matches, up to `hard_signals` (2); `simple_words` (writing or fixing tests, renames, typos,
+  formatting and lint, docstrings and comments, "explain", version bumps) puts it at `simple` (2). "Architecture",
+  "design a" and "prove" moved from the hard list to the hardest; the rest of the hard list stayed.
+- Checked on the routing simulator (`scripts/routing_sim.py`, 2,000 standard tasks) before merging. With one hard
+  word worth one level and "quick fix" or "one-liner" on the simple list, hard work sold as small went to level 2 and
+  hard tasks lost their level 5: success fell from 97.4% to 96.7% (threshold) and too-low first attempts rose from
+  1.8% to 3.1%. Effort words came off the simple list, symptom words went on the hard one, and two signs of hard work
+  make level 5. Before and after, against always-Sonnet (97.4%, $3.40 a finished task in total) and
+  always-Opus (97.7%, $3.95): the threshold 97.4% and $3.48 before, 97.5% and $3.63 after (19% more spend, all on
+  Fable at level 5); cost per success 96.5% and $3.52 before, 96.8% and $3.47 after (7% less spend).
+- A new prompt that says the last answer was wrong (the coding outcomes' correction rules) raises the task by
+  `correction_raise` (1). Only the newest message is read, so it raises the task it starts and not the ones after.
+- The reason names the list and the pattern: `coding: 32 tools; simple task wording (write (unit )?tests): level 2`.
+- What the harness adds is left out of the wording (`translate.person_text`): Claude Code's `<system-reminder>` blocks
+  and local command output, Codex's `<environment_context>` and AGENTS.md. A message of only that is passed over, like
+  one of only tool results. The coding outcomes' correction check reads the same text.
+- `agent_by_tools: true` brings back the old rule: at least `agent_tools` tools puts the request at `agent` (4), and
+  simple wording doesn't lower it. Off by default. The tool count stays a feature either way: the learned router gets
+  `rule:agent` whenever a request has at least `agent_tools` tools, whatever set its level.
+- The level still holds for the task: set at a boundary (a new session, a new prompt, a compacted history) and kept
+  until the next one, so nothing here moves a session mid-task. A task harder than its wording goes up at the next
+  boundary: by a correction, by the learned router (whose labels include fix loops and failing tests), and by the
+  outcome report and exploration (decision 59). Never by length (decision 38).
+- Feature version 4: the learned router's words leave out the harness's text, and its rules' level comes from the
+  wording, so models and rows of version 3 aren't used. Train again after upgrading.
+
+What it changes, on the 12 November 2026 price list and scores, for 10 developers on Claude Code and Codex, 8 tasks a
+day each, 21 working days (1,680 tasks), 25 calls a task from 20,000 tokens and growing 2,000 a call, with Claude Code's
+own 5-minute cache markers (the Savings page's model of `Router.estimate`). With an assumed mix of 30% level 2, 45%
+level 3, 20% level 4 and 5% level 5: Claude Opus 5.5 for everything is $2,254 a month, Claude Sonnet 5.5 $1,127, Merit
+Order at the threshold $344 (DeepSeek V4.1 Flash at 2, Claude Haiku 5.5 at 3, GPT-6.1 Terra at 4, Claude Fable 5.2 at
+5) and with cost per success $335. Under the old rule the same traffic was all level 4 or 5 (85% and 15%): $1,047 and
+$1,072, against Sonnet's $1,127. Fable's 5% is $210 of the $344: the hardest work is still most of the bill.
+
+**Not chosen:** A higher `agent_tools`: Claude Code sends about two dozen tools before any MCP server, a small agent five, so no
+count separates easy work from hard. A level from the number of turns or edits so far: that's length by another name,
+and it would move a session mid-task. A model call to judge each task's difficulty: it costs more than many of the
+answers, adds latency to every task start, and is harder to explain than a word list. Raising the level mid-task on a
+fix loop: it would throw away the cache in the middle of the work; the next prompt is soon enough. Letting simple
+wording win over hard ("write tests for the deadlock fix"): a level too low fails the task, one too high only costs
+more.
+
+**Revisit if:** the outcome report finds level-2 coding fails noticeably more than level 3 (the simple list is too
+broad), most tasks land at the default 3 because people's prompts don't use the listed words (then the learned router,
+or a classifier trained on the wording, is the tool), or Claude Code's compaction summaries keep moving compacted
+tasks up a level (the summary is a user message, so its words are read).
+
+## 62. Route by expected total cost to finish the task, a person's time included, by default; escalation inside a task opt-in
+
+**Why:** Routing is what saves money, and a cheap answer that has to be redone saves nothing. The threshold ignores how
+likely a model is to fail; cost per success (decision 43) counts a failure's tokens but not the person who has to notice
+it, say so and wait, and it uses only the benchmark's chances. Agent work fails in ways the gateway can see while the task
+runs (decision 59's coding outcomes: tests failing after edits, fix loops, error results, a correction), yet a task kept
+its model to the end whatever they showed.
+
+**How:**
+
+- `routing.model_choice: expected_cost`, now the default (a team can choose another): an `auto` task goes to the model with the lowest
+  `E(m) = try(m) + (1 − P(m)) × (H + next attempt)`. The try is the router's usual estimate for the rest of the session
+  (cache rebuild, decision 53's hour, decision 60's pauses). H is `human_cost_usd`, per team, $1 by default (one minute of
+  a developer at $60 an hour), shown and set in Config → Routing and on Controls. The next attempt is the same model again
+  or a stronger one from a cold cache, its chance conditioned on the failure before it (a hidden difficulty shared by
+  every model, 1 log-odds wide), for as many escalations as the task may still make (`routing.cascade.max_escalations`,
+  0 by default; up to 2). After the last (by default, the first attempt), a failure costs H only. The floors, `min_success_chance`, team policy, budgets and a
+  client's `X-Route-Floor` bound it as they bound cost per success; the threshold decides where no chances are known.
+- `P(m)`, one predictor (`success.py`): the benchmark prior (decision 58's chance, read between levels in log-odds) at
+  the task's difficulty; the difficulty from the rules' level, or, with the learned router routing, its difficulty and
+  spread, which widens the prior (probit approximation); and, opt-in (`routing.success.mode`), a fitted layer on the
+  learned router's rows: a calibration of the prior to what outcomes count as success (intercept and slope), each model's
+  own ability, offsets per team, repository and project, and the opening prompt's triage features (hashed word triples
+  and the paths it mentions, 16,384 buckets). Every part has a normal prior at zero, so thin evidence keeps the prior. It
+  is fitted by coordinate-wise Newton steps with the learned router's training, checked on the newest fifth by paired
+  Brier score, and used in `route` mode only if it beat the prior by two standard errors; `shadow` records it next to
+  the prior. Exploration's rows (decision 59) are the off-level evidence for the abilities.
+- Repositories come from what Claude Code and Codex already send (the working directory in the system prompt, Codex's
+  `<cwd>`) and projects from the client's `project` tag, both as keyed hashes of 8 hex characters; never the path.
+- The cascade (`Router._escalate`, off by default): the task model's chance at the task's start moves by its tool results in log-odds
+  steps (tests failing after the last edit −0.6, build broken −0.4, each failed run in a row after the first −0.3, a fix
+  loop −0.8, error results in a row −0.15 each, a correction −1.4, many files or core files touched a little; tests
+  passing +0.5). Where it's allowed, continuing (the rest of the task where it is, and a failure there escalating later)
+  is compared with escalating (the rest of the task on a stronger model from a cold cache, one escalation fewer left),
+  and the task moves when escalating is cheaper by more than `switch_margin_usd`. Allowed: at a human message that
+  carries on the task (a correction, or the code left failing), or mid-task after `cascade.failures_now` (3) failures in
+  a row. Never down inside a task (a new task starts fresh), never for a named model, never past the team's models, never
+  once a budget is 90% spent, never into a refusal by `max_request_usd`.
+- Recording: the routing reason names both models' chances, what they're made of, the costs compared and, for an
+  escalation, the evidence. The task's `route_features` row gets `predicted` (the chosen model's and the runner-up's
+  chance, the fitted layer's, the expected total and token costs), `context` (the hashes) and `triage_features`
+  (migration 20), and at the task's end its cost, escalations and their reasons (the `coding` column). Every request of an
+  escalated task carries the ledger tags `escalation` (1 or 2) and `escalated_from`. The escalation's first request takes
+  the failed attempt's baseline cost off its baseline and its routing savings: without Merit Order that attempt wouldn't
+  have been made. A conversation's spend and baseline counters (`task:`, `task-base:` in Redis) give both.
+- Reports → Learned router: predicted against seen success (a reliability table, Brier score, by model, the fitted
+  layer's own), escalations (how often, whether the task then ended without a failure signal, what was charged), and
+  expected against actual cost per finished task. Reports → Levels says what the team's person's cost and escalations
+  are.
+
+**What it showed:** on the routing simulator (`scripts/routing_sim.py`: 2,000 standard tasks, seed 1, a price of $15
+per failed attempt, decision 61's levels, `docs/routing-eval/scorecard.md`; a failed attempt
+costs someone time: noticing it, asking again, waiting, cleaning up; here that time has a price per failed attempt, an
+assumption you can change. The total counts model spend plus failed attempts times that price), against the threshold, the default
+before this: $0.51 per finished task against $1.01 (50% less), 97.9% finished against 97.5%, $2.88 against $3.63
+in total, counting failed attempts (90% intervals $2.56 to $3.21 and $3.20 to $4.07; Sonnet for everything $3.40), and 89.7% of
+analyses against 82.5% (cost per success: 72.2%). At level 5 it picks Gemini 4 Carbon where it's cheaper per success than
+Fable. It costs least
+in total at a price of $5, $15 and $50 per failed attempt and on every mix, pause share and quality error the simulator varies.
+The CI check's baseline (160 tasks, seed 7, decision 61's levels) moved from $0.589 to $0.350 per finished task and from
+$2.192 to $1.671 in total, at the same 99.4% success, and was updated on purpose. The cascade (one escalation)
+escalated 16.2% of tasks, 67% of them then finished, and finished 98.0%, but at $0.63 per finished task and $2.95 in total it cost
+more than it saved: off by default. A person's cost of $2 or $5 in the router (instead of $1) cost 3% and 17% more
+in total on 1,000 tasks, and $0.25 or $0.50 4% and 3% more: the benchmark's chances are FrontierSWE's, more pessimistic than the work, and a new
+session's try is priced for 3 turns, a tenth of an agent attempt, so a large H on that prior buys too much model. An
+earlier, simpler check (`tests/test_expected_cost.py::simulate`, 600 agent tasks in the prior's own world) agreed: $0.433
+against the threshold's $0.444 at H = $1.
+
+**Not chosen:** Keeping the threshold as the default and this opt-in until outcomes calibrate it: the simulator says the
+uncalibrated prior already beats the threshold on cost and success; what calibration fixes (a 2,000-token general:2
+question goes to Gemini 4 Carbon at $0.030 rather than Claude Haiku at $0.0016 on the shipped list) is the smaller
+effect. The cascade on by default: it cost more than it saved on the simulator. The simulator's own $15 as the router's
+default H: see above. Independent failures (decision 43's assumption): retrying a model that failed would look as good as
+the first try. A bandit that learns the escalation policy: adaptive and harder to audit; the plan is a few lines of
+arithmetic each reason shows. Escalating at any tool result: a model swap mid-loop rewrites the cache for one failed run;
+a human message or several failures in a row are the points where a person would. A learned in-task model: the evidence
+weights are priors from the outcome labels' weights until there's enough escalation data to fit them. Storing paths or
+commands: hashes and counts are enough.
+
+**Revisit if:** the fitted layer beats the prior in most organizations (then raise the default person's cost), the
+reliability table shows the in-task evidence weights are off, escalations rarely help (a stronger model fails as often
+after a first failure: raise `SPREAD`), the cascade pays on real traffic where a team turns it on (then on by default),
+or replay of explored task starts (`routing_sim.py replay`) ranks the choices differently from the simulator.
+
+**Amended** by decision 67: a failure costs the share of H the request puts at stake (its level and size), and the tie band
+and the margin for moving a session are shares of money, not of the expected total.
+
+## 63. Cold starts timed per phase, paid back in the break-even; the weights cache an opt-in volume that only an admin deletes
+
+**Why:** The first real start on Lambda (one A10, gpt-oss-20b) took about 11 minutes, billed and serving nothing: about
+8 for the machine, SkyPilot and the 10 GB image pull, about 3 for the weights. Nothing said where the time went, and the
+break-even ignored it: a burst that paid for a warm replica started one, which then cost 11 idle minutes and the 30 minute
+hold for traffic that was already gone.
+
+**How:** The replica's gate marks its start from the machine's side (boot and container start from `/proc`, the gate,
+vLLM, vLLM's own "downloaded" and "loaded" log lines, its port first taking a connection) and reports them on its status
+and every lease reply. The controller adds the launch request, SkyPilot's launch returning and its first ready probe,
+turns the marks into phases (a missing mark merges its phase into the next; across the two clocks a phase is clamped at
+zero), logs them, writes a `replica_ready` entry, and keeps the deployment's last 10 starts and their average. A replica
+that isn't running yet must cover its price, the margin, and its cold start over `hold_minutes`; a running one only its
+price and the margin. The cold start is that average, or `serve.cold_start_minutes` (12) before there's one. Faster
+starts on by default only where nothing can break: Xet's high-performance downloads (what vLLM 0.32 already does).
+`serve.load_format` is configurable and stays `auto`. A registry login (`SKYPILOT_DOCKER_*`) goes with each launch
+when set, for a copy of the image near the GPUs. `serve.weights_cache: volume` keeps the Hugging Face and vLLM caches on
+a SkyPilot volume, `mo-<install>-<deployment>-hf`, made before the first launch. Its monthly price counts in GPU spend
+for every hour it exists. Only `meritorder gpu volumes delete` removes it; the sweep never lists volumes.
+
+**Not chosen:** `HF_HUB_ENABLE_HF_TRANSFER=1`: huggingface_hub 1.x ignores it (the Hub is on Xet), and the image has no
+`hf_transfer`. `runai_streamer` or `fastsafetensors` by default: both are in the image, but they aren't confirmed with
+every quantization (gpt-oss's MXFP4), and a model that won't load costs a whole failed start. Amortizing the cold start
+over the expected run instead of the hold: there's no estimate of how long a burst lasts, and the hold is the least the
+controller commits to. Counting the cold start for running replicas too: it's paid, so it would only stop replicas
+earlier and add flapping. Volumes on every cloud: SkyPilot 0.14.2 has them on Kubernetes and RunPod only, and can't
+attach Lambda's filesystems. A hand-made disk per cloud would be a second storage layer to keep and clean up. The sweep
+deleting volumes no deployment wants: a deleted cache costs a full download to rebuild, and a renamed deployment would
+lose it, so deleting stays a person's call. Volume cost in the burn rate: the burn rate and the fleet's dollars-an-hour
+cap are about machines, and the volume bills whether they run or not. Pre-baked machine images: one per model, region
+and cloud, rebuilt for every version, and a second way to run vLLM. Documented as a later option for AWS, GCP and Azure.
+
+**Revisit if:** measured starts differ much from 12 minutes (change the default), the phases show the image pull
+dominating on AWS or GCP (then a registry copy or pre-baked images), a faster loader is confirmed with the models people
+run (then on by default for them), or SkyPilot gains volumes on more clouds, Lambda's filesystems among them.
+
+## 64. GPUs counted at what they cost to run; savings after GPU cost; one budget total for every surface
+
+**Why:** After a real run on Lambda, Dispatch said "Spend today $0.0001, without Merit Order $0.0022, −95%" while the GPU
+had accrued $1.62 that day. Spend and savings summed only the ledger, where a request on a GPU carries its share of the
+GPU's time at the deployment's capacity (pricing.chargeback). The replica time the controller accrues (`gpu_usage`),
+starting and idle included, only reached the GPU budget. So spend was undercounted, self-hosting looked nearly free, and
+the organization's budget, documented as all LLM spend, left GPUs out. Separately, admission counted running batches'
+reservations while Controls, the attention panel and the budget alerts didn't, and personal alerts counted a person's
+spend in one team while admission counts it across teams.
+
+**How:** `spend.py`. For the organization, total spend = the ledger + GPU idle, where GPU idle = the GPU time accrued −
+the shares of the requests served on those GPUs, per hour and backend. The self-hosting cause loses GPU idle, so it is the
+API cost the GPU-served requests avoided less what the GPUs cost; savings by cause still add up to baseline − spend, and
+both show below zero when that's what happened. Every summary row carries `api_cost`, `gpu_cost` and `gpu_idle_cost`
+(store.summary sums the GPU backends' rows; spend.summary folds in the idle time). Only backends with GPU time accrued in
+the period are set against it, so a self-hosted backend no controller runs keeps its shares as its cost.
+
+Teams and people are charged their requests' shares, and their budgets count them; GPU idle is the organization's alone,
+shown as "GPU idle, unallocated": in its period's row by day, hour or month, in the GPU backend's row by backend, and as a
+row of its own by team, person, model or tag. A team lead's view never shows it. The org budget counts it: each gateway
+reads the month's GPU idle at most once a minute and adds it to the org counter at admission (the counter itself is
+unchanged). `spend.budget_spend(store, cfg, kind, ident)` is the one budget total: the month's ledger, running batches'
+reservations (shown on their own), and for the organization GPU idle; a person's across teams. Admission seeds its
+counters from it, and Controls (now to a millionth of a dollar), the attention panel, the budget alerts and the eval
+budget check show it. Prometheus: `meritorder_cost_usd_total` gets a `kind` label (`api`, `gpu_share`, `gpu`), so the
+Grafana dashboard adds the burn gauge to the requests' cost without the shares.
+
+**Not chosen:** Allocating each GPU-hour's whole cost to the teams in proportion to the tokens they sent it. A team that
+sent one request in an hour would pay the whole hour, for a GPU the controller started on everyone's demand; team totals
+would move with other teams' traffic and with idle time no team controls, and a team budget could be used up that way.
+Shares at capacity are what the team used; the rest is a decision the organization made. Writing GPU time into the
+ledger as rows: they'd have no person or team, every per-row report would have to skip them, and batch and request
+counts would change. Stopping GPU requests from adding to the org counter and having the controller add its accrual
+there: the batch poller, reservations and seeding all add to that counter too, and each would need the same exception.
+A per-row `gpu_cost` column (a migration, a backfill over the whole ledger): the backend name already says it.
+Counting reservations in reports: they aren't spent yet and become ledger rows when the batch settles; reports show
+settled spend, budgets show both.
+
+**Revisit if:** teams ask to be charged their GPUs' idle time (then allocate it by share of tokens per hour, on top), a
+deployment's capacity is far off its measured throughput (then shares from measured tokens per second), or the burn gauge
+should include the weights cache volumes.
+
+## 65. A person's record lowers a key's role, never raises it; a saved configuration reads only allowed secrets
+
+**Why:** An audit found two ways to more access than was granted. A team lead could issue a `user` key for someone who
+hadn't signed in yet; when that person signed in as an admin, the key acted as their record, so the lead held an admin
+key. And an admin who saves a configuration from the console chooses both a backend's key source (`auth.value_env`,
+`value_file`) and its `base_url`, so they could have the gateway send any variable or readable file (the database URL,
+the SCIM token) to their own server, or read one back through an expanded `${NAME}`.
+
+**How:** A key acts as the lower of the role it was issued with and its person's record (`auth.lower_role`). The record
+still decides the team, and disabling someone refuses all their keys, static keys from the file included. A sign-in key
+is issued with the record's team and role, so an admin's pin applies to it. Leads revoke only keys they could issue. A
+console-saved configuration's secret fields may read only a provider's key variable or `MERITORDER_BACKEND_*` (backends,
+bill sources) or their own variable (the gateway's own secrets); files only from `MERITORDER_SECRETS_DIR`, resolved;
+`${NAME}` elsewhere only the variables the shipped config uses. The operator widens the lists in the environment
+(`MERITORDER_CONFIG_SECRET_ENVS`, `MERITORDER_CONFIG_ENVS`). The YAML file on disk isn't checked: it's the operator's.
+
+**Not chosen:** Keeping "the record decides the role" and checking at minting time only: the record can change after the
+key exists. Promotions raising existing keys: the same path a lead used. A denylist of secret-looking names (the old
+`_SECRETISH`): it missed webhook URLs and anything named unusually. Refusing every `value_env` in saved configurations:
+the shipped config's backends need them.
+
+**Revisit if:** people need promotions to apply to keys they already hold (then reissue them on promotion), or operators
+keep secrets under names the lists don't cover often enough that the variables become a chore.
+
+## 66. An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence
+
+**Why:** Audits found money and data that didn't add up. A route with no price (the live list not fetched yet, or not
+listing it) cost $0: `auto` already passed it by, but a request naming its model, an embedding or a batch was served
+and recorded at $0, so no budget ever bound. A refusal retried on another model wrote two ledger rows that each carried
+the full baseline, inflating savings by one baseline per refusal. And a spend counter that exists in Redis was trusted
+for the rest of the month: a Redis restored from a snapshot (the compose file's `redis:7-alpine` saved RDB snapshots by
+default) had counters behind the ledger, and people over budget got through until the month ended.
+
+**How:** A route needs a price when its backend charges per token: an API, or a mock, which stands in for one (the
+shipped mocks have prices). Without one it's not a candidate for any request, and a model left with no candidate
+answers 503 with "no price known for this route yet; set `price:` or wait for the price list". The worker raises a
+critical alert per such route, once a day. Self-hosted routes are charged by GPU time, so they stay usable unpriced. A
+refused attempt's row has no baseline and its cost as a routing loss: baseline - actual = the sum of causes on every row
+and every request. The worker recomputes each of this month's counters from the ledger plus batch reservations
+(`spend.budget_spend`'s ledger + reserved, the sum seeding uses) and adds the difference to one that's off by the same
+amount two cycles running, under a lease so one worker does it. Seeding keeps aside what requests add while the ledger is read. Redis in compose
+runs with `--save "" --appendonly no`.
+
+**Not chosen:** Exempting mocks from the price rule: they'd be the one place a route with no price looks free, and a
+demo's budgets and reports would show $0. Refusing at config load: the live list arrives after start, and one unpriced
+route shouldn't stop a gateway. Checking the ledger on every request: a Postgres query per request is what the counters
+exist to avoid. Setting a counter to the ledger's value: a request counted in between would be lost; adding the
+difference keeps it. Correcting a difference seen once: a request adds to its counter a moment before its ledger row is
+written, so a single difference is often nothing wrong.
+
+**Revisit if:** corrections show up in the worker's log without a Redis restore (then find what drifts), or a deployment
+needs Redis to keep sessions across restarts (then keep persistence, and rely on the correction alone).
+
+## 67. A failure costs what the request puts at stake; the tie band and the margin for moving are counted on money
+
+**Why:** Decision 62 charged every possible failure the full person's cost H ($1). On the benchmark prior that buys
+strong models for trivial work. The prior's chances are FrontierSWE's: a model exactly at a level solves 70% of its work
+(coding; 77% general), and the same gaps between models are read down to level 1, so it says GLM-5.3 Flash fails "What's
+the capital of Portugal?" 23% of the time and GPT-6.1 Terra 4%. At $1 a failure those 19 points are worth $0.19, against
+a try that costs $0.0004. An audit of the shipped configuration found, for a new session: that question went to GPT-6.1
+Terra at $0.015 a try (the threshold's pick, GLM-5.3 Flash, costs $0.00038), "write unit tests" with 20 tools at 20,000
+tokens (coding:2) to Terra at $0.038 (the threshold: DeepSeek V4.1 Flash, $0.0015), and coding:3 at 30,000 tokens to Terra
+at $0.051 (the threshold: Claude Haiku, $0.0060). On the simulator's scorecard decision 62 spent more than the threshold
+per finished task on five of seven task classes: easy coding 77% more at the same 100% success, ordinary coding 36% more,
+short questions 54 times as much, chat 9 times, analysis 2.2 times (for 7 points more finished). Its overall win came
+from level 5 (Gemini 4 Carbon instead of Claude Fable) and fewer failed analyses. That breaks "the cheapest model that
+meets the bar". Two smaller faults added to it: the tie band (2% under the `cost` priority, where the better model goes
+first) and the margin for moving a session (10% plus $0.01) were shares of the expected total, the person's cost
+included, so a 2% band on a $0.05 total let a model at three times the price of a $0.0004 try win on quality.
+
+**How:**
+
+- **Stakes** (`success.stakes`, `Router.stakes`): a request puts `H × stakes` at risk, with
+  `stakes = (1/3)^(5 − level) × min(1, prompt tokens / 8,000)`, counted at level 5 after a correction (the person's
+  newest prompt says the last answer was wrong: outcomes.correction). H is now what a failed attempt at the top of the
+  scale costs a person: a level-5 task, a full agent request. Level 4 puts a third of it at stake, level 3 a ninth, level
+  1 1/81, and a 20-token question 1/400 of that. The plan (`success.plan`) is unchanged; it's given `H × stakes`. The
+  cascade's comparison inside a task uses the same stakes, for the task's level and the request in hand.
+- Why these factors. What a failure costs a person grows with the work: a re-asked question costs seconds, a failed
+  agent task minutes of review and a redo; SWE-bench Verified's annotated times to fix grow about fourfold from one bucket
+  to the next (under 15 minutes, up to an hour, up to four hours). A third per level sits between that and halving, and
+  did best on the simulator (below). And the prior is least informative where the stakes are lowest: it's measured at
+  level 5 and extrapolated down, so it overstates how often a cheap model fails easy work. A request's size stands for
+  what the person handed over and has to check. Coding agents send 15,000 tokens and more from their first turn (tools,
+  system prompt), so in practice only one-shot questions and short chats are scaled by it. A correction is evidence from
+  the traffic, not the prior, that the work matters more than its wording said.
+- **Money, not a person's time, in the bands** (`Candidate.spend`: the plan's token part): the tie band is the priority's
+  premium of the cheapest route's money (`limit = E(best) + premium × tokens(best)`), and moving a session must save
+  10% of its current route's money plus $0.01. For the threshold and cost per success nothing changes: what they rank on
+  is all money.
+- The reason says what's at stake: `a failure costs $0.11 of a person's time (of $1.00: 1/9 at level 3)`, and
+  `route_features.predicted` records `stakes` and the `human_cost` at stake.
+- Three fixes from the same audit. A human message after a failing run carries the task on (the cascade's "human"
+  stage) only when it's a correction, or when, classified first, it's the same kind of work at no higher a level than the
+  task's (`Router.carries_on`): a new, harder prompt is a new task at its own level, and the old task's row records its
+  end. A named model substituted because it can't run (`substitute_unavailable`) is routed at its score rounded up to a
+  whole level, as a client's floor: the header it built before ("coding:3.8") didn't parse, so the substitute was
+  classified by its wording instead. And an escalation's charge (decision 62) is one value shared by the request's attempts, taken once, on the answer's row (decision 66 keeps it off refused attempts' rows; before, each attempt's row could take it).
+- The simulator follows the gateway: its cascade strategy folds tool results into the session's state, reads a
+  correction from the retry's words instead of forcing one, carries a task on only where `Router.carries_on` does, and
+  keeps the task's chance and its reset after an escalation with the gateway's own function (`success.track`). Each client
+  sends its own API (Claude Code `anthropic`, the small agent `responses`, chat clients `openai`; before, all `anthropic`)
+  and its reply length (`max_tokens`: Claude Code 32,000, chat 4,096 or 8,192), so the router's room for the reply and
+  its window checks are exercised.
+- The CI check (`scripts/routing_sim.py check`) runs 1,000 tasks (was 160) and the threshold on the same tasks, and fails
+  when any task class with 20 or more tasks spends more than 10% above the threshold per finished task
+  (`CLASS_TOLERANCE`), besides the 5% and 2-point limits against the stored baseline.
+
+**What it showed:** the full scorecard (2,000 tasks, seed 1, a price of $15 per failed attempt,
+`docs/routing-eval/scorecard.md`), model spend per finished task and success, by task class:
+
+| Class (tasks) | Threshold | Decision 62 | Decision 67 (the default) | 67 against the threshold |
+|---|---|---|---|---|
+| Easy coding (559) | $0.053, 100% | $0.094, 100% | $0.027, 100% | −50% |
+| Ordinary coding (740) | $0.30, 100% | $0.41, 100% | $0.22, 100% | −27% |
+| Hard coding (128) | $13.29, 81.2% | $5.03, 79.7% | $4.90, 80.5% | −63% |
+| Very hard coding (10) | $54.12, 60% | $17.77, 60% | $17.55, 60% | −68% |
+| Short questions (159) | $0.000026, 100% | $0.0014, 100% | $0.000026, 100% | the same |
+| Chat (278) | $0.0027, 100% | $0.025, 100% | $0.0022, 100% | −19% |
+| Analysis (126) | $0.043, 82.5% | $0.095, 89.7% | $0.033, 86.5% | −23% |
+| All (2,000) | $1.01, 97.5% | $0.51, 97.9% | $0.40, 97.7% | −60% |
+
+It spends less than the threshold on every class (the same on short questions), and 20% less than decision 62 overall.
+In total, counting failed attempts, it costs $3.08 per finished task ($0.40 model spend, $2.67 time lost): less than the threshold ($3.63) and always-Sonnet ($3.40;
+paired difference −$0.32, 90% interval −$0.51 to −$0.13), but $0.20 more than decision 62's $2.88 (paired, +$0.09 to
++$0.32), and it finishes 0.15 points fewer (−0.35 to 0). Nearly all of the difference is analysis: decision 62 bought its
+89.7% by spending 2.2 times the threshold on every general request, chat's 9 times included, because the rules give an
+analysis and an email the same levels. No setting tried does both. A person's cost of $2 costs $3.01 in total
+but spends 43% more than the threshold on analysis and 30% more on chat; at $3 ordinary coding costs more than the
+threshold too, and at $5 easy coding as well. A half per level ($3.00 in total) spends 14% more than the
+threshold on analysis and 7% more on chat, and sends the audit's coding:2 request to Claude Haiku at three times DeepSeek
+V4.1 Flash's price; a quarter costs $3.16. A 4,000-token size reference spends 30% more than the threshold on chat;
+16,000 does as well as 8,000. Without the correction rule analysis falls to 77% and the total rises to $3.27. So this is
+a trade: the cheapest model that meets the bar on easy work, decision 62's savings on hard work, and $0.20 per finished
+task more in total than decision 62 on this simulator, almost all of it on analysis. Seeds 2 and 3 agree (every
+class at or below the threshold; $3.02 and $3.01 against $2.78 and $2.81 with the full person's cost). The audit's three requests now
+go where the threshold sends them: GLM-5.3 Flash, DeepSeek V4.1 Flash and Claude Haiku (tests/test_routing_stakes.py).
+
+The cascade (one escalation), rerun with the simulator's fixes: it escalates 12.1% of tasks (was 16.2%), 62% of them
+then finish (was 67%), and it finishes 97.8% against the default's 97.7%, at $3.08 per finished task in total,
+the same as without it, for a third more model spend ($0.54 against $0.40). It doesn't pay for itself, so it stays off by
+default. The CI check's baseline, on its new 1,000 tasks (seed 7, frozen prices): decision 62 $0.457 per finished task,
+$2.630 in total, 98.0%; decision 67 $0.358, $2.861, 97.7%; the threshold $0.787, $3.116, 97.9%. On the old 160
+tasks the default moved from $0.350, $1.671, 99.4% to $0.265, $1.974, 98.8%. The baseline was updated on purpose.
+
+**Not chosen:** The threshold wherever only the benchmark prior speaks (no fitted layer): that's the threshold by default
+everywhere, and gives up level 5, where the prior is the benchmark itself. A gate that keeps the threshold's pick unless
+the plan beats it by a margin: the prior's gaps are as wide at level 1 as at level 5, so a margin that stops Terra on a
+one-line question stops Carbon on level-5 work too. Correcting the prior itself at low levels (`config.apply_chances`):
+cost per success and the reports read it too, and the stakes say the same thing where it matters, in the person's cost.
+Scaling by the session's expected turns: a new session's are always 3. A person's cost per level in the configuration:
+one more table to set, for factors nobody has measured; they're constants in `success.py`, and every reason shows them.
+Separate factors for coding and general work: no evidence for them, and the simulator's one gap (analysis against chat)
+is the rules' levels, not the kind of work.
+
+**Revisit if:** the fitted layer routes in most organizations (its calibration says how wrong the prior is at low levels;
+then the level factor may move towards a half), Reports → Learned router shows failed analyses or general level-3 work
+costing more than the models they'd have needed, the rules learn to tell analysis from writing (then decision 62's gain
+there comes back without chat's cost), or a measured time to notice and redo a failure per level replaces the third.

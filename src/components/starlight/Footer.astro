@@ -1,0 +1,9 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+import source from '../../generated/source.json';
+---
+<Default />
+<p class="mo-doc-foot">
+  From <a href="https://github.com/Merit-Order/meritorder">Merit-Order/meritorder</a>{source.commit && <> at <code>{source.commit}</code></>}.
+  Merit Order is open source under the AGPL-3.0-only. Version 0.0.1, pre-production.
+</p>

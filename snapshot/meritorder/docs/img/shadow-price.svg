@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 360" width="680" height="360" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Shadow price vs replica load</title>
+  <desc>The fraction of the API price a self-hosted token costs in routing: 2% up to 60% load (routing.shadow_floor, routing.shadow_knee), then rising with the square of the load past the knee, reaching the API price at 100%. At 100% the replica takes nothing new while another route has room.</desc>
+  <!-- Solid background so the chart reads the same in GitHub's light and dark themes. -->
+  <rect width="680" height="360" rx="8" fill="#ffffff"/>
+
+  <!-- zones: 0-60%, 60-100%, full -->
+  <rect x="80" y="40" width="288" height="240" fill="#e8f5ec"/>
+  <rect x="368" y="40" width="192" height="240" fill="#fff6e0"/>
+  <rect x="560" y="40" width="100" height="240" fill="#fde8e8"/>
+  <text x="224" y="62" text-anchor="middle" font-size="13" fill="#1e6b3a" font-weight="600">Headroom: 2% of the API price</text>
+  <text x="464" y="62" text-anchor="middle" font-size="13" fill="#8a5a00" font-weight="600">Filling up</text>
+  <text x="610" y="62" text-anchor="middle" font-size="13" fill="#9b1c1c" font-weight="600">Full</text>
+
+  <!-- API price reference (multiplier 1.0) -->
+  <line x1="80" y1="90" x2="560" y2="90" stroke="#555555" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="86" y="112" font-size="12" fill="#333333">API price of the same model (1.0)</text>
+
+  <!-- axes -->
+  <line x1="80" y1="280" x2="660" y2="280" stroke="#333333" stroke-width="1.5"/>
+  <line x1="80" y1="280" x2="80" y2="35" stroke="#333333" stroke-width="1.5"/>
+  <text x="370" y="330" text-anchor="middle" font-size="13" fill="#333333">Replica load: vLLM's KV-cache use (85%+ when requests queue), or in-flight / max_concurrency</text>
+  <text x="34" y="175" text-anchor="middle" font-size="13" fill="#333333" transform="rotate(-90 34 175)">Share of the API price</text>
+  <text x="80" y="298" text-anchor="middle" font-size="12" fill="#555555">0%</text>
+  <text x="368" y="298" text-anchor="middle" font-size="12" fill="#555555">60% (knee)</text>
+  <text x="464" y="298" text-anchor="middle" font-size="12" fill="#555555">80%</text>
+  <text x="560" y="298" text-anchor="middle" font-size="12" fill="#555555">100%</text>
+  <text x="72" y="280" text-anchor="end" font-size="11" fill="#555555">0</text>
+  <text x="72" y="94" text-anchor="end" font-size="11" fill="#555555">1</text>
+
+  <!-- curve: 0.02 below the knee, then 0.02 + 0.98 x ((load - 0.6) / 0.4)^2 -->
+  <path d="M80.0 276.2 L368.0 276.2 L377.6 275.7 L387.2 274.3 L396.8 272.0 L406.4 268.8 L416.0 264.6 L425.6 259.4 L435.2 253.4 L444.8 246.4 L454.4 238.5 L464.0 229.6 L473.6 219.9 L483.2 209.2 L492.8 197.5 L502.4 185.0 L512.0 171.5 L521.6 157.0 L531.2 141.7 L540.8 125.4 L550.4 108.2 L560.0 90.0"
+        fill="none" stroke="#2457c5" stroke-width="3.5" stroke-linejoin="round"/>
+  <circle cx="464" cy="229.6" r="4" fill="#2457c5"/>
+  <text x="472" y="236" font-size="11" fill="#1d3f8f">27% at 80%</text>
+  <circle cx="512" cy="171.5" r="4" fill="#2457c5"/>
+  <text x="502" y="166" text-anchor="end" font-size="11" fill="#1d3f8f">57% at 90%</text>
+  <circle cx="560" cy="90" r="5" fill="#c0392b"/>
+  <text x="610" y="130" text-anchor="middle" font-size="11" fill="#9b1c1c">nothing new while</text>
+  <text x="610" y="145" text-anchor="middle" font-size="11" fill="#9b1c1c">another route</text>
+  <text x="610" y="160" text-anchor="middle" font-size="11" fill="#9b1c1c">has room; else it</text>
+  <text x="610" y="175" text-anchor="middle" font-size="11" fill="#9b1c1c">queues (max_waiting)</text>
+</svg>

@@ -1,0 +1,519 @@
+# Merit Order configuration.
+#
+# Strings support ${ENV_VAR} and ${ENV_VAR:-default}. Secrets come from the
+# environment (see .env.example), never from this file.
+#
+# Backends whose credentials or URLs are missing are switched off automatically,
+# so this file works with whatever provider keys you have. Run `meritorder check`
+# to see what is usable.
+#
+# PRICES are live: the worker refreshes them every prices_refresh_minutes (15) from OpenRouter's catalog
+# (OpenRouter routes) and the price list LiteLLM maintains (direct provider APIs: Anthropic, OpenAI,
+# Bedrock, Vertex, Azure, Foundry), long-prompt tiers included, and alerts when one changes or the two
+# lists disagree. prices.json is the last refresh. Set `price:` on a route only to override the list,
+# e.g. for a negotiated discount; `price_key:` names the model when a route's id isn't its name (an
+# Azure deployment). QUALITY scores (1-5) come from published benchmarks too (the `quality:` section below).
+# The ones written on each model apply only with `source: config` or until live scores are first fetched; a
+# model the source doesn't cover isn't picked by `auto` unless it has a `quality_override`.
+
+# "What you'd use without Merit Order": the counterfactual for savings reports.
+baseline_model: claude-sonnet
+
+# Open-weight models, direct vendor APIs, and OpenRouter's free tier.
+include:
+  - models-open.yaml
+  - models-embeddings.yaml
+
+default_max_tokens: 16000
+
+# Where `auto` gets each model's 1-5 quality scores, refreshed daily by the worker (docs/11-evals.md).
+quality:
+  source: epoch               # epoch (Epoch AI's benchmark data, no key) | artificial_analysis (ARTIFICIAL_ANALYSIS_API_KEY) | config
+  scale: absolute             # absolute: a 5 is a fixed chance on the reference (anchor) | best: the best model is 5 | range
+  reference: {coding: FrontierSWE, general: FrontierSWE}   # Epoch: scores are each model's chance on a task this hard
+  anchor: {coding: 0.6994, general: 0.7685}   # absolute: the chance on the reference that scores 5 (the best model, 12 November 2026)
+  evidence: {coding: [FrontierSWE, FrontierCode]}         # Epoch: results that show a model's coding strength, beyond its general ability
+  fallback: {coding: [Terminal Bench, GSO-Bench, MirrorCode]}   # Epoch: older coding results, only for a model with neither of those nor an index
+
+routing:
+  auto_model: auto              # clients send model="auto" to let the router choose
+  switch_margin_pct: 10         # only move a session if it's this much cheaper (after cache rebuild)
+  est_output_tokens: 600
+  # Among routes that cost about the same, the faster one wins. cost: only ties (2%); balanced: a faster
+  # route may cost 20% more; speed: up to 100% more. Teams (priority:) and X-MeritOrder-Priority override it.
+  priority: cost
+  # How a request gets its level: from its wording and tools, never from its length (docs/03-routing.md). Tools say
+  # it's coding; the task's wording sets the level (decision 61). The defaults, with word lists of regular expressions
+  # (coding_words, simple_words, hard_words, hardest_words, analysis_words) besides:
+  # levels: {general: 2, short: 1, short_tokens: 400, analysis: 3, coding: 3, simple: 2, hard_raise: 1, hard_signals: 2, hardest: 5,
+  #          correction_raise: 1, agent_by_tools: false, agent: 4, agent_tools: 5}
+  # agent_by_tools: true puts any request with agent_tools or more tools at `agent`, whatever its wording (before 61).
+  # How auto chooses among models. expected_cost (the default, decisions 62 and 67): the lowest expected cost to finish the
+  # task, counting what a failure puts at stake of a person's time (human_cost_usd, scaled by the request's level and
+  # size) and the next attempt. threshold: the cheapest whose
+  # score meets the request's level. cost_per_success: the lowest expected cost per solved task. The last two may pick a
+  # model a little below the level, never one whose chance there is under min_success_chance. Teams can set their own.
+  model_choice: expected_cost
+  min_success_chance: 0.6
+  human_cost_usd: 1.0           # a failed level-5 agent task: a minute of a developer at $60 an hour; a third as much for
+                                # each level below 5, less under 8,000 tokens. Teams can set their own (Controls)
+  # Escalation inside a task to a stronger model on failing tests, fix loops or a correction: off by default (0); 1 or 2.
+  # cascade: {max_escalations: 0, failures_now: 3}
+  # The success predictor's layer fitted to your outcomes (needs the learned router on): off, shadow or route.
+  # success: {mode: off}
+  # The learned router (docs/03-routing.md#the-learned-router): off, shadow (record each request's hashed features and
+  # what followed, predict a level next to the rules' and change nothing; Reports → Learned router compares them) or
+  # route (use its level when at least min_confidence sure). Train it with `meritorder router train`.
+  # learned: {mode: shadow, min_confidence: 0.8, max_age_days: 30, retrain_hours: 24, train_days: 30, train_requests: 20000,
+  #           keep_days: 90}
+
+backends:
+  # Keys come from the environment (value_env). In Kubernetes you can also add
+  # value_file: /run/secrets/meritorder/<NAME> so a rotated key works without a restart
+  # (docs/07-deployment.md#secrets). Bedrock, Vertex, and Azure can run keyless on workload identity.
+  # --- always available: in-process mocks for trying things out and for tests
+  mock-anthropic:
+    kind: mock
+    format: anthropic
+    mock_min_cache_tokens: 1024   # like Anthropic: shorter prompts aren't cached
+  mock-openai:
+    kind: mock
+    format: openai
+
+  # --- Anthropic Messages API family
+  anthropic:
+    format: anthropic
+    base_url: https://api.anthropic.com
+    cache_ttl_seconds: 3600       # Claude's 1-hour cache from a session's second turn (decision 53); 300 for 5 minutes only
+    auth: {type: api_key, header: x-api-key, value_env: ANTHROPIC_API_KEY}
+
+  bedrock:                      # Claude in Amazon Bedrock (Messages API, SigV4 or bearer token)
+    enabled: ${MERITORDER_BEDROCK:-true}   # false until the account can use the models (quotas, model access)
+    format: anthropic
+    base_url: https://bedrock-mantle.${AWS_REGION:-us-east-1}.api.aws/anthropic
+    anthropic_version: "2026-10-21"
+    forward_anthropic_beta: false
+    cache_ttl_seconds: 3600
+    auth: {type: aws_sigv4, service: bedrock-mantle, region: "${AWS_REGION:-us-east-1}", profile: "${AWS_PROFILE:-}"}
+
+  foundry-claude:               # Claude in Microsoft Foundry
+    enabled: ${MERITORDER_FOUNDRY_CLAUDE:-true}   # false until the Claude deployments exist
+    format: anthropic
+    base_url: ${AZURE_FOUNDRY_ENDPOINT}/anthropic
+    forward_anthropic_beta: false
+    cache_ttl_seconds: 3600
+    auth: {type: api_key, header: x-api-key, value_env: AZURE_FOUNDRY_API_KEY}
+
+  vertex:                       # Claude on Vertex AI (needs: uv sync --extra gcp; the Docker image has it)
+    enabled: ${MERITORDER_VERTEX:-true}   # switched off automatically without Google credentials
+    format: anthropic
+    flavor: vertex
+    project: ${GOOGLE_CLOUD_PROJECT}
+    region: global
+    cache_ttl_seconds: 3600
+    auth: {type: google}
+
+  vertex-gemini:                # Gemini on Vertex AI, through its OpenAI-compatible endpoint: Google's own prices and quotas
+    enabled: ${MERITORDER_VERTEX:-true}
+    format: openai
+    base_url: https://aiplatform.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/locations/global/endpoints/openapi
+    auth: {type: google}
+    effort_format: openai
+    price_prefix: "vertex_ai/"
+
+  # Gemini on Vertex AI through its native generateContent API, which also returns thought summaries, cached-token
+  # counts and why a reply was blocked. Same project and quota as vertex-gemini. Off until you've tried it on your
+  # project (MERITORDER_VERTEX_GEMINI_NATIVE=true); then you can switch vertex-gemini off.
+  vertex-gemini-native:
+    enabled: ${MERITORDER_VERTEX_GEMINI_NATIVE:-false}
+    format: openai
+    api: gemini
+    flavor: vertex
+    project: ${GOOGLE_CLOUD_PROJECT}
+    region: global
+    auth: {type: google}
+
+  gemini:                       # the Gemini API (a Google AI Studio key), native generateContent; off until GEMINI_API_KEY is set
+    format: openai
+    api: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    auth: {type: api_key, header: x-goog-api-key, value_env: GEMINI_API_KEY}
+
+  # --- OpenAI-compatible family
+  azure-openai:
+    format: openai
+    base_url: ${AZURE_OPENAI_ENDPOINT}/openai/v1
+    auth: {type: api_key, header: api-key, value_env: AZURE_OPENAI_API_KEY}
+    max_tokens_field: max_completion_tokens
+
+  openai:
+    format: openai
+    base_url: https://api.openai.com/v1
+    auth: {type: api_key, value_env: OPENAI_API_KEY}
+    supports_prompt_cache_key: true
+    max_tokens_field: max_completion_tokens
+    api: responses                # GPT-5.6 and later take function tools with reasoning only on the Responses API
+    # responses_store: true       # stored-mode teams only: OpenAI stores their turns too (30 days) and continues its own
+
+  xai:                          # xAI's own API (Grok); off until XAI_API_KEY is set
+    format: openai
+    base_url: https://api.x.ai/v1
+    auth: {type: api_key, value_env: XAI_API_KEY}
+  openrouter:                   # one key for open-weight and Chinese models (and most others)
+    format: openai
+    base_url: https://openrouter.ai/api/v1
+    auth: {type: api_key, value_env: OPENROUTER_API_KEY}
+
+  local-vllm:                   # a vLLM/SGLang server you already run (always used while it's up)
+    enabled: ${MERITORDER_LOCAL_VLLM:-false}
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 8.0          # per replica; used for chargeback and break-even
+    capacity_tokens_per_second: 2500
+    max_concurrency: 64             # vLLM --max-num-seqs (or what the KV cache fits): saturation seen within seconds
+    cache_ttl_seconds: 600
+    serve:
+      provisioner: static
+      model: qwen3-coder-next
+      static_url: ${LOCAL_VLLM_URL:-http://localhost:8000/v1}
+      min_replicas: 1
+
+  gpu-qwen-coder:               # SkyPilot starts this on cloud GPUs when demand pays for it
+    enabled: ${MERITORDER_SKYPILOT:-false}
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 16.0         # fallback only: with SkyPilot installed, prices come from its catalog per cloud/region/instance
+    capacity_tokens_per_second: 4000
+    max_concurrency: 64             # per replica; at full, requests spill to APIs or wait (max_waiting, default 32)
+    cache_ttl_seconds: 600
+    serve:
+      provisioner: skypilot         # one SkyPilot cluster per replica, named mo-<install id>-gpu-qwen-coder-<n>
+      model: qwen3-coder-next
+      accelerators: "H100:4"
+      use_spot: true                # spot: AWS and GCP only (Lambda has no spot instances, so it isn't offered here)
+      clouds: [aws, gcp, lambda]
+      image: vllm/vllm-openai:v0.32.0-cu129
+      vllm_args: "--max-model-len 262144"
+      max_replicas: 4
+      scale_up_after_minutes: 10
+      hold_minutes: 30
+      # Each replica stops by itself when the controller hasn't renewed its lease for lease_minutes, and SkyPilot
+      # deletes it autostop_minutes later (docs/05-gpu-autoscaling.md#the-lease).
+      # lease_minutes: 15
+      # autostop_minutes: 5
+      # A start bills without serving (about 11 min for gpt-oss-20b on a Lambda A10): a replica that isn't running yet
+      # must pay it back over hold_minutes. This is the guess until the deployment's own starts are measured.
+      # cold_start_minutes: 12
+      # The Hugging Face cache on a volume, so later starts skip the download (Kubernetes and RunPod only; it bills
+      # monthly until `meritorder gpu volumes delete`): docs/05-gpu-autoscaling.md#the-weights-cache-volume
+      # weights_cache: volume
+      # weights_cache_infra: runpod/CA/CA-MTL-1
+      # weights_cache_gb: 50
+      # The gateways send each request to a replica themselves (there's no load balancer), and a session's turns back
+      # to the one that holds its KV cache. To see evictions exactly instead of estimating them, follow vLLM's KV events
+      # (vLLM 0.30 or later), only where the events port is on a private network: they carry token ids.
+      # kv_events: true
+
+  gpu-small:                    # one A10 on Lambda (about $1.29 an hour): the smallest real SkyPilot deployment, for scripts/skypilot_check.py
+    enabled: ${MERITORDER_SKYPILOT_SMALL:-false}
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 1.29         # fallback only: the price comes from SkyPilot's catalog
+    capacity_tokens_per_second: 1500
+    max_concurrency: 32
+    serve:
+      provisioner: skypilot
+      model: gpt-oss-20b            # MXFP4 weights (about 13 GB): fit a 24 GB A10 with room for the KV cache
+      accelerators: "A10:1"
+      clouds: [lambda]
+      image: vllm/vllm-openai:v0.32.0-cu129
+      vllm_args: "--max-model-len 16384 --gpu-memory-utilization 0.92"
+      disk_size_gb: 256             # Lambda's disks are fixed by instance type; other clouds get this much
+      max_replicas: 1
+
+  gpu-qwen-coder-k8s:           # your own Kubernetes cluster's GPUs, through KServe or llm-d, when demand pays for it
+    enabled: ${MERITORDER_KUBERNETES:-false}
+    kind: self_hosted
+    format: openai
+    gpu_cost_per_hour: 16.0         # fallback only: a replica is priced at its node type's rate (kubernetes.node_types)
+    capacity_tokens_per_second: 4000
+    max_concurrency: 64
+    cache_ttl_seconds: 600
+    serve:
+      provisioner: kubernetes
+      model: qwen3-coder-next
+      accelerators: "H100:4"        # 4 GPUs a replica (nvidia.com/gpu: 4, tensor parallel 4)
+      image: vllm/vllm-openai:v0.32.0-cu129
+      vllm_args: "--max-model-len 262144"
+      max_replicas: 4
+      kubernetes:
+        api: kserve                 # or llm-d, with inference_pool and endpoint (its Gateway's /v1 URL)
+        node_type: p5.48xlarge      # pods go to these nodes (node.kubernetes.io/instance-type) and are priced at its rate
+        hf_token_secret: hf-token   # a Secret with HF_TOKEN, for gated models
+        cpu: "32"                   # what one replica may use on its node; KServe needs both (its defaults, 1 CPU and
+        memory: 256Gi               # 2 GiB, are too little for vLLM)
+
+# The cluster that `provisioner: kubernetes` deployments run on (docs/05-gpu-autoscaling.md#kubernetes). Namespace:
+# blank uses MERITORDER_GPU_NAMESPACE (the Helm chart sets it), else the controller's own. A cluster has no price
+# catalog, so give each GPU node type what one node costs you an hour (list, reserved, or chargeback rate).
+kubernetes:
+  node_types:
+    p5.48xlarge: {usd_per_hour: 55.04, gpus: 8}     # an example rate: put your own
+
+models:
+  # --- frontier
+  claude-fable:                  # Anthropic's most capable tier; priced above Opus, so `auto` only picks it when it scores higher
+    effort_levels: [low, medium, high, xhigh, max]
+    aliases: ["claude-fable-*", "anthropic/claude-fable*", "fable"]
+    quality: {coding: 5, general: 5}
+    routes:
+      - {backend: anthropic, model: claude-fable-5-2}
+      - {backend: bedrock, model: anthropic.claude-fable-5-2}
+      - {backend: foundry-claude, model: claude-fable-5-2}
+      - {backend: vertex, model: claude-fable-5-2}
+      - {backend: openrouter, model: anthropic/claude-fable-5.2}
+
+  claude-opus:
+    effort_levels: [low, medium, high, xhigh, max]
+    aliases: ["claude-opus-*", "anthropic/claude-opus*", "opus"]
+    quality: {coding: 5, general: 5}
+    routes:
+      - {backend: anthropic, model: claude-opus-5-5}
+      - {backend: bedrock, model: anthropic.claude-opus-5-5}
+      - {backend: foundry-claude, model: claude-opus-5-5}
+      - {backend: vertex, model: claude-opus-5-5}
+      - {backend: openrouter, model: anthropic/claude-opus-5.5}
+
+  claude-sonnet:
+    effort_levels: [low, medium, high, xhigh, max]
+    aliases: ["claude-sonnet-*", "anthropic/claude-sonnet*", "sonnet"]
+    quality: {coding: 5, general: 4}
+    routes:
+      - {backend: anthropic, model: claude-sonnet-5-5}
+      - {backend: bedrock, model: anthropic.claude-sonnet-5-5}
+      - {backend: foundry-claude, model: claude-sonnet-5-5}
+      - {backend: vertex, model: claude-sonnet-5-5}
+      - {backend: openrouter, model: anthropic/claude-sonnet-5.5}
+
+  claude-haiku:
+    effort_levels: [low, medium, high, xhigh, max]
+    aliases: ["claude-haiku-*", "anthropic/claude-haiku*", "haiku"]
+    quality: {coding: 3, general: 3}
+    # Set by hand: Epoch's 12 November 2026 refit put Haiku's coding at 2.9, just under level 3, which sent ordinary
+    # coding to GPT-6.1 Terra at about 10x the price. Our own coding evals (11 November) had it pass 14 of 15 hard tasks
+    # and 96% overall. Remove this to follow Epoch again.
+    quality_override: {coding: 3.0}
+    routes:
+      - {backend: anthropic, model: claude-haiku-5-5}
+      - {backend: bedrock, model: anthropic.claude-haiku-5-5}
+      - {backend: foundry-claude, model: claude-haiku-5-5}
+      - {backend: vertex, model: claude-haiku-5-5}
+      - {backend: openrouter, model: anthropic/claude-haiku-5.5}
+
+  # OpenAI's tiers, largest first: Astra, Sol, Terra, Luna. Prompts over 272K tokens cost more (a tier in the price list).
+  # Older names (gpt-5.6-*) are kept as aliases so clients that ask for them get the current model of the tier.
+  gpt-astra:
+    effort_levels: [low, medium, high]
+    aliases: ["gpt-6-astra*", "openai/gpt-6-astra*"]
+    quality: {coding: 5, general: 5}   # not measured yet: run an eval (Models → Evals)
+    routes:
+      - {backend: openai, model: gpt-6-astra}
+      - {backend: openrouter, model: openai/gpt-6-astra}
+
+  gpt-sol:
+    effort_levels: [low, medium, high]
+    aliases: ["gpt-6.1-sol*", "openai/gpt-6.1-sol*", "gpt-6-sol*", "openai/gpt-6-sol*"]
+    quality: {coding: 4, general: 4}   # not measured yet: run an eval (Models → Evals)
+    routes:
+      - {backend: openai, model: gpt-6.1-sol}
+      - {backend: openrouter, model: openai/gpt-6.1-sol}
+
+  gpt-terra:
+    effort_levels: [low, medium, high]
+    aliases: ["gpt-6.1-terra*", "openai/gpt-6.1-terra*", "gpt-5.6-terra*", "openai/gpt-5.6-terra*"]
+    quality: {coding: 4, general: 4}
+    routes:
+      - {backend: openai, model: gpt-6.1-terra}
+      - {backend: azure-openai, model: "${AZURE_OPENAI_GPT_DEPLOYMENT:-gpt-6.1-terra}", price_key: gpt-6.1-terra}
+      - {backend: openrouter, model: openai/gpt-6.1-terra}
+
+  gpt-luna:
+    effort_levels: [low, medium, high]
+    aliases: ["gpt-6-luna*", "openai/gpt-6-luna*", "gpt-5.6-luna*", "openai/gpt-5.6-luna*"]
+    quality: {coding: 3, general: 3}
+    routes:
+      - {backend: openai, model: gpt-6-luna}
+      - {backend: openrouter, model: openai/gpt-6-luna}
+
+  # Google's Gemini, on Vertex AI, the Gemini API and through OpenRouter (checked November 11, 2026). Their quality
+  # scores come from the benchmark source like everyone's (Carbon has a coding score only, so far). Carbon and Argon
+  # are at launch prices ($2/$10) until November 30, 2026, then $4/$20; the live refresh picks that up.
+  gemini-carbon:                 # Gemini 4 Carbon, Google's strongest reasoning model; writes up to ~1M tokens
+    effort_levels: [low, medium, high]
+    aliases: ["gemini-4-carbon*", "google/gemini-4-carbon*", "carbon"]
+    routes:
+      - {backend: vertex-gemini, model: google/gemini-4-carbon, price_key: gemini-4-carbon}
+      - {backend: vertex-gemini-native, model: gemini-4-carbon}
+      - {backend: gemini, model: gemini-4-carbon}
+      - {backend: openrouter, model: google/gemini-4-carbon}
+
+  gemini-argon:                  # Gemini 4 Argon: faster than Carbon and fewer tokens per turn, same price
+    effort_levels: [low, medium, high]
+    aliases: ["gemini-4-argon*", "google/gemini-4-argon*", "argon"]
+    routes:
+      - {backend: vertex-gemini, model: google/gemini-4-argon, price_key: gemini-4-argon}
+      - {backend: vertex-gemini-native, model: gemini-4-argon}
+      - {backend: gemini, model: gemini-4-argon}
+      - {backend: openrouter, model: google/gemini-4-argon}
+
+  gemini-flash:                  # Gemini 3.8 Flash
+    effort_levels: [low, medium, high]
+    aliases: ["gemini-3.8-flash*", "google/gemini-3.8-flash*"]
+    routes:
+      - {backend: vertex-gemini, model: google/gemini-3.8-flash, price_key: gemini-3.8-flash}
+      - {backend: vertex-gemini-native, model: gemini-3.8-flash}
+      - {backend: gemini, model: gemini-3.8-flash}
+      - {backend: openrouter, model: google/gemini-3.8-flash}
+
+  gemini-flash-lite:             # Gemini 3.5 Flash-Lite, the cheapest and fastest
+    effort_levels: [low, medium, high]
+    aliases: ["gemini-3.5-flash-lite*", "google/gemini-3.5-flash-lite*"]
+    routes:
+      - {backend: vertex-gemini, model: google/gemini-3.5-flash-lite, price_key: gemini-3.5-flash-lite}
+      - {backend: vertex-gemini-native, model: gemini-3.5-flash-lite}
+      - {backend: gemini, model: gemini-3.5-flash-lite}
+      - {backend: openrouter, model: google/gemini-3.5-flash-lite}
+
+  # xAI's Grok (checked November 12, 2026): Grok 4.7 is the newest. Through OpenRouter, and xAI's own API once
+  # XAI_API_KEY is set. Bedrock, Vertex AI and Azure Foundry also serve it once it's switched on in each account.
+  grok:                          # Grok 4.7
+    effort_levels: [low, medium, high]
+    aliases: ["grok-4*", "x-ai/grok-4*", "xai/grok-4*"]
+    routes:
+      - {backend: xai, model: grok-4.7}
+      - {backend: openrouter, model: x-ai/grok-4.7}
+
+  # --- mocks (used by `model=auto` only when no real backend is available)
+  mock-large:
+    quality: {coding: 5, general: 5}
+    routes:
+      - {backend: mock-anthropic, model: mock-large, price: {input: 2, output: 10, cache_read: 0.10, cache_write: 2.5}}
+  mock-small:
+    quality: {coding: 3, general: 3}
+    routes:
+      - {backend: mock-openai, model: mock-small, price: {input: 0.10, output: 0.50, cache_read: 0.01}}
+
+# Checking the ledger against providers' own cost data (docs/08-reporting.md, "Checking costs against the bills").
+# Off until sources are listed. Each source needs read access to its provider's costs; give the account (or the
+# filter: workspace_ids, project_ids, accounts, a resource group) to Merit Order alone, or other usage shows as gaps.
+# billing:
+#   refresh_hours: 6            # the worker fetches every source this often
+#   lookback_days: 40           # and rereads this many days each time: providers restate recent days
+#   alert_pct: 5                # alert when a settled day's bill and ledger differ by this much (percent of the ledger)
+#   alert_min_usd: 1            # and by at least this many dollars
+#   sources:
+#     anthropic: {type: anthropic}    # Admin API key in ANTHROPIC_ADMIN_KEY
+#     openai: {type: openai}          # Admin key in OPENAI_ADMIN_KEY
+#     aws: {type: aws}                # Cost Explorer (ce:GetCostAndUsage) through the AWS credential chain
+#     # Or, instead of Cost Explorer (one of the two per account): a Data Export of CUR 2.0 in S3 (s3:ListBucket, s3:GetObject).
+#     # aws-cur: {type: aws_cur, export: s3://<bucket>/<prefix>/<export name>, auth: {type: aws_sigv4, region: us-east-1}}
+#     gcp: {type: gcp, table: my-billing-project.billing_export.gcp_billing_export_v1_0123AB_456789_ABCDEF}
+#     azure: {type: azure, scope: /subscriptions/<subscription-id>/resourceGroups/<group>}   # Cost Management Reader
+#     # Or, instead of the Query API: a daily Cost Management export (FOCUS or actual cost) in Blob Storage (Storage Blob Data Reader).
+#     # azure-export: {type: azure_export, export: https://<account>.blob.core.windows.net/<container>/<directory>/<export name>}
+
+# A copy of the ledger in ClickHouse, for very large deployments (docs/08-reporting.md, "Storage and scale"). Off while
+# MERITORDER_CLICKHOUSE_URL is empty. Postgres stays the record: the worker copies new rows every 30 seconds, and reports over
+# more than 7 days and tag breakdowns read ClickHouse once it holds their range (`meritorder clickhouse backfill` copies older rows).
+reporting:
+  clickhouse:
+    url: ${MERITORDER_CLICKHOUSE_URL:-}                     # ClickHouse's HTTP interface: http://clickhouse:8123, https://<host>:8443
+    database: ${MERITORDER_CLICKHOUSE_DATABASE:-meritorder}
+    user: ${MERITORDER_CLICKHOUSE_USER:-default}
+    auth:
+      value_env: MERITORDER_CLICKHOUSE_PASSWORD
+      value_file: /run/secrets/meritorder/MERITORDER_CLICKHOUSE_PASSWORD   # Helm secrets.mountAsFiles: rotates without a restart
+    # reads: large           # large (default), all, or none (copy only)
+    # ttl_days: 400          # drop ledger rows in ClickHouse after this many days (default: keep them)
+    # rollup_ttl_days: 1825  # the same for the hourly rollup
+
+# Batches: work that can wait up to a day, through the providers' batch APIs at about half price (docs/02-request-flow.md,
+# "Batches"). On for Anthropic, OpenAI, Azure OpenAI, Mistral, Moonshot, xAI, OpenRouter and the Gemini API as they are;
+# Bedrock and Vertex AI need a bucket on the backend (batch: {bucket: s3://... , role_arn: ...} / {bucket: gs://...}).
+# GPU deployments that are running (and set max_concurrency) take batch work in their headroom, at low priority, near
+# free; what hasn't run there after gpu.handoff_hours goes to a provider's batch API. Uploads and GPU work are held
+# sealed with MERITORDER_BATCH_KEY (in Postgres, or storage.bucket); results stay with the providers until
+# retention_days after a batch ends. To rotate the key, move the old one to MERITORDER_BATCH_KEY_PREVIOUS.
+# batches:
+#   retention_days: 7
+#   poll_seconds: 60            # the worker's first check on a provider job; the wait doubles while nothing changes
+#   max_poll_seconds: 1800
+#   key_grace_days: 9           # how long the previous key is read after a rotation (default: retention_days + 2)
+#   storage:
+#     bucket: s3://my-bucket/meritorder   # or gs://..., or https://<account>.blob.core.windows.net/<container>/<prefix>
+#     backend: bedrock                    # whose credentials sign its requests (default: the first that signs in there)
+#   gpu: {enabled: true, handoff_hours: 12, priority: 20}
+
+# The Responses API's stored mode (docs/04-caching-and-sessions.md, "Stateful APIs"): off unless a team turns it on
+# with a retention (teams.<name>.stored_responses: {enabled: true, retention_days: 30}). Then the gateway keeps what
+# those teams' clients chain with previous_response_id or conversations, sealed with MERITORDER_RESPONSES_KEY.
+# response_store:
+#   key_env: MERITORDER_RESPONSES_KEY
+#   key_file: /run/secrets/meritorder/MERITORDER_RESPONSES_KEY   # a mounted secret, re-read when it changes
+#   old_keys_env: MERITORDER_RESPONSES_OLD_KEYS                   # while rotating: old keys still read, comma-separated
+
+# Hard limits for everyone (also editable on the console's Controls page). Set them in .env; a blank or unset
+# variable means no limit.
+safeguards:
+  org_budget_usd_month: ${MERITORDER_ORG_BUDGET_USD:-}        # all LLM spend, GPU time included; requests are refused once reached
+  gpu_budget_usd_month: ${MERITORDER_GPU_BUDGET_USD:-}        # GPU time; GPUs drain and none start once reached
+  max_gpu_usd_per_hour: ${MERITORDER_MAX_GPU_USD_PER_HOUR:-}  # whole-fleet burn rate
+  max_gpu_replicas: ${MERITORDER_MAX_GPU_REPLICAS:-}
+  max_request_usd: ${MERITORDER_MAX_REQUEST_USD:-25}          # refuse a single request whose worst case would cost more
+  alert_at: [0.8, 1.0]
+
+# Model-based compression of tool results (LLMLingua-2), for teams that turn on compression.model
+# (docs/04-caching-and-sessions.md). Run `meritorder compressor` (Docker Compose: --profile compressor) and set
+# MERITORDER_COMPRESSOR_URL; while it's empty, no team can turn it on. The model must be the one the service loaded.
+compressor:
+  url: ${MERITORDER_COMPRESSOR_URL:-}
+  model: ${MERITORDER_COMPRESSOR_MODEL:-microsoft/llmlingua-2-xlm-roberta-large-meetingbank}
+  api_key_env: MERITORDER_COMPRESSOR_KEY   # a shared secret the service checks; unset: none
+
+# Where the people using this gateway can get its source: the console's footer and GET /about link to it. Merit Order is
+# under the AGPL-3.0: if you run a changed version for others over a network, point this at your version's source.
+console:
+  source_url: ${MERITORDER_SOURCE_URL:-https://github.com/Merit-Order/meritorder}
+
+teams:
+  default:
+    budget_usd_month: 5000
+    user_budget_usd_month: 500
+    # Judged labels for the learned router (docs/03-routing.md#judged-labels), off by default: a sample of this team's
+    # requests is replayed on a stronger model and graded by a judge. That sends those prompts and answers to two more
+    # models. Turn it on from Config → Routing → Judged labels, which shows the expected cost first. The cap is required.
+    # judged_labels: {enabled: true, sample_rate: 0.01, stronger: auto, stronger_level: 5,
+    #                 judges: [claude-opus, gpt-sol, gemini-carbon], max_usd_month: 50}
+
+auth:
+  static_keys:
+    # Development key from the environment. In production, create keys with
+    # `meritorder keys create` or use OIDC login.
+    - {key_env: MERITORDER_DEV_KEY, user: dev, team: default, role: admin}
+  # Entra ID, Google, or any OIDC provider. Switched off while MERITORDER_OIDC_ISSUER is empty.
+  # Entra issuer: https://login.microsoftonline.com/<tenant-id>/v2.0. Google: https://accounts.google.com.
+  oidc:
+    issuer: ${MERITORDER_OIDC_ISSUER}
+    client_id: ${MERITORDER_OIDC_CLIENT_ID}
+    public_client_secret: ${MERITORDER_OIDC_CLIENT_SECRET}   # Google only (its device clients' secret is public)
+    hosted_domains: ${MERITORDER_OIDC_HOSTED_DOMAINS}        # Google only, required: example.com,example.org
+    team_from_groups: {}      # {"<entra-group-object-id>": platform}, or with google_groups {"platform@example.com": platform}
+    role_from_groups: {}      # {"<entra-group-object-id>": admin}
+    team_from_emails: {}      # Google: {"@research.example.com": research, "bob@example.com": platform}
+    role_from_emails: {}      # {"carol@example.com": admin}
+    # Google only: read people's Google Groups (Cloud Identity API) for the group mappings above, as a service account
+    # with the Groups Reader admin role (docs/06-auth-and-spend.md#google-groups).
+    google_groups:
+      enabled: ${MERITORDER_GOOGLE_GROUPS:-false}
+      credentials_env: MERITORDER_GOOGLE_GROUPS_CREDENTIALS   # the service account's JSON key; unset: workload identity
+      # credentials_file: /run/secrets/meritorder/MERITORDER_GOOGLE_GROUPS_CREDENTIALS   # or a mounted file (re-read on change)

@@ -1,0 +1,26 @@
+---
+// The docs header in the B style: brand / Docs, search, the site's links, and the same theme toggle as the rest of
+// the site.
+import Search from 'virtual:starlight/components/Search';
+import ThemeToggle from '../ThemeToggle.astro';
+import Brand from '../Brand.astro';
+import GitHubIcon from '../GitHubIcon.astro';
+---
+<div class="mo-header">
+  <div class="mo-title">
+    <Brand />
+    <span class="mo-slash" aria-hidden="true">/</span>
+    <a class="mo-crumb" href="/docs/">Docs</a>
+  </div>
+  <div class="mo-search"><Search /></div>
+  <div class="mo-right">
+    <nav class="mo-links" aria-label="Site">
+      <a href="/how-it-works/">How it works</a>
+      <a href="/savings/">Savings</a>
+      <a href="/compare/">Compare</a>
+      <a href="/demo/">Demo</a>
+    </nav>
+    <ThemeToggle />
+    <a class="mo-gh" href="https://github.com/Merit-Order/meritorder" aria-label="Merit Order on GitHub"><GitHubIcon /></a>
+  </div>
+</div>

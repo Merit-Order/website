@@ -1,0 +1,29 @@
+{
+  "name": "meritorder-website",
+  "private": true,
+  "version": "0.0.1",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "sync": "node scripts/sync-docs.mjs",
+    "refresh": "node scripts/refresh.mjs",
+    "dev": "npm run sync && astro dev",
+    "build": "npm run sync && astro build && node scripts/csp.mjs",
+    "preview": "astro preview",
+    "check:links": "node scripts/check-links.mjs",
+    "shots": "node scripts/screenshots.mjs"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.43.1",
+    "@fontsource-variable/geist": "5.3.0",
+    "@fontsource-variable/geist-mono": "5.3.0",
+    "astro": "7.4.12",
+    "github-slugger": "2.0.0",
+    "playwright": "1.65.1",
+    "rehype-mermaid": "3.0.0",
+    "yaml": "2.9.1"
+  }
+}

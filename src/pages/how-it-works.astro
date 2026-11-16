@@ -1,0 +1,217 @@
+---
+import Base from '../layouts/Base.astro';
+import PreProd from '../components/PreProd.astro';
+import { caching, sticky, gpu, pricesDate, std, ov, HUMAN, fmt } from '../lib/numbers.js';
+const E = ov(std, 'auto-expected-cost'), T = ov(std, 'auto-threshold'), C = ov(std, 'auto-cost-per-success'), K = ov(std, 'auto-expected-cost-cascade');
+const s = fmt.sig;
+
+// The shadow price curve (router.py shadow_multiplier): flat at the floor up to the knee, then rising with the square
+// of the load to the full API price at 100%.
+const { shadow_floor: floor, shadow_knee: knee } = gpu;
+const mult = (u: number) => (u <= knee ? floor : floor + (1 - floor) * ((u - knee) / (1 - knee)) ** 2);
+const X0 = 44, X1 = 340, Y0 = 186, Y1 = 22;
+const px = (u: number) => X0 + u * (X1 - X0);
+const py = (m: number) => Y0 - m * (Y0 - Y1);
+const curve = Array.from({ length: 101 }, (_, i) => i / 100).map((u, i) => `${i ? 'L' : 'M'}${px(u).toFixed(1)} ${py(mult(u)).toFixed(1)}`).join(' ');
+
+const steps = [
+  ['Arrives', 'Anthropic or OpenAI format, any tool'],
+  ['Checks limits', 'budgets, rate limits, caps; refused before sending'],
+  ['Gets a level', 'tools say coding; the wording sets the level'],
+  ['Finds who may serve it', 'room in the window, allowed, chance above the floor'],
+  ['Prices every route', 'rebuild + turns × cost per turn'],
+  ['Picks the lowest expected total', 'try + (1 − chance) × (person + retry)'],
+  ['Shapes and sends', 'cache markers, compression, effort; fails over'],
+  ['Records it', 'ledger row: cost, baseline, savings by cause, reason'],
+];
+---
+<Base title="How it works" description="One request through the Merit Order gateway, then a session, then a month: levels, scores, cost per success, cache-aware routing, compression, batch, GPUs at break-even, budgets and learning from your own traffic.">
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h1>One request, one session, one month.</h1>
+    <p class="sub">Follow a coding agent's request through the gateway. Then watch what changes when it becomes a conversation, and what a month of traffic adds. Worked examples are list-price arithmetic on the shipped prices of {pricesDate}; routing's results come from the routing simulator.</p>
+  </div>
+</section>
+
+<section class="sec" id="request" aria-labelledby="request-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Part 1</p><h2 id="request-h">A request</h2></div>
+      <p class="lead">Your tool sends <code>model: "auto"</code> to the gateway, with a Merit Order key. The tool doesn't change. Everything below happens before the first byte goes to a provider, in well under the time a model takes to answer.</p>
+    </div>
+    <div class="two">
+      <figure class="diagram">
+        <svg viewBox="0 0 360 452" role="img" aria-labelledby="pipe-t">
+          <title id="pipe-t">The path of one request: {steps.map((x) => `${x[0]}: ${x[1]}`).join('; ')}.</title>
+          {steps.map(([t, d], i) => {
+            const y = 6 + i * 56;
+            const key = i === 5;
+            return (
+              <g>
+                <rect class={key ? 'dg-acc' : 'dg-surface'} x="6" y={y} width="348" height="42" rx="8"></rect>
+                <text class="dg-m" x="20" y={y + 26}>{String(i + 1).padStart(2, '0')}</text>
+                <text class="dg-t2" x="48" y={y + 18}>{t}</text>
+                <text class="dg-s" x="48" y={y + 34}>{d}</text>
+                {i < steps.length - 1 && <path class="dg-line" d={`M180 ${y + 42} V${y + 56}`}></path>}
+              </g>
+            );
+          })}
+        </svg>
+      </figure>
+      <div class="story" style="border-top:0">
+        <div class="prose">
+          <h3 style="margin-top:0">1. Limits first</h3>
+          <p>Organization, team, person and session budgets, rate limits and the per-request cost ceiling are checked from the gateway's own counters. Over a limit, the request is refused before it costs anything, and the error says which limit.</p>
+          <h3>2. A level for the work</h3>
+          <p>Rules read the request, with no model call. Plain text is general 2. Tools or code make it coding, at 3, and the task's wording then sets the level: "write tests", renames, typos and docstrings put it at 2; hard wording such as "race condition", "migration" or "under load" adds one for each kind, up to two; "architecture" or "design a" puts it at 5. What the harness adds (Claude Code's system reminders, Codex's AGENTS.md) isn't read as the task. Length never raises a level.</p>
+          <h3>3. Each model's chance</h3>
+          <p>Every model has a 1 to 5 score per kind of work, from Epoch AI's benchmark data against a fixed bar, or from your own evals, and from it a chance of finishing work at each level. A model may serve the task when the conversation fits its context window, the team may use it, and its chance is above the floor.</p>
+          <h3>4. Price for the rest of the session</h3>
+          <p>Every route of every model that may serve the task is priced as <code>rebuild + expected turns × cost per turn</code>. The rebuild is what it costs to get the conversation into that provider's cache: zero where it is already warm. That is the try.</p>
+          <h3>5. Pick, shape, send, record</h3>
+          <p>The lowest expected total wins: <code>try + (1 − chance) × (person's time + next attempt)</code>, with a person's time at $1 a failure by default (a minute of a developer), set per team. The gateway adds cache markers, compresses tool output if the team turned it on, and sets reasoning effort from the level. If the provider fails, the next route takes it, before anything reaches your tool. A ledger row records the cost, what the baseline model would have cost, and why.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="story" style="margin-top:56px">
+      <div class="step">
+        <div><p class="num">Simulated</p><h3>What the default changes</h3></div>
+        <div class="body"><p>On the routing simulator's {std.settings.tasks.toLocaleString('en-US')} standard tasks (every model call mocked, each failed attempt priced at ${HUMAN} of someone's time), expected total cost finished {fmt.pct1(E.success_rate)} of tasks at {fmt.usd(E.cost_per_finished, 2)} of model spend each, against the old threshold's {fmt.pct1(T.success_rate)} at {fmt.usd(T.cost_per_finished, 2)}; {fmt.usd(E.total_per_finished_with_human, 2)} against {fmt.usd(T.total_per_finished_with_human, 2)} in total, counting failed attempts. Cost per success (<code>model_choice: cost_per_success</code>) spends less on models, {fmt.usd(C.cost_per_finished, 2)}, but finishes {fmt.pct1(C.success_rate)}. Escalating to a stronger model inside a task (<code>routing.cascade</code>, off by default) finished {fmt.pct1(K.success_rate)} but cost {fmt.usd(K.total_per_finished_with_human, 2)} in total, counting failed attempts, so it stays opt-in. The chances come from benchmark scores; they haven't been checked against real outcomes yet. <a href="/savings/#simulated">All the results</a>.</p></div>
+      </div>
+      <div class="step">
+        <div><p class="num">Option</p><h3>Name a model</h3></div>
+        <div class="body"><p>A request for <code>claude-opus</code> always gets Claude Opus. Merit Order then only picks the cheapest of its routes (Anthropic, Bedrock, Vertex AI, Foundry, OpenRouter) with the same stickiness and failover.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="session" aria-labelledby="session-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Part 2</p><h2 id="session-h">A session</h2></div>
+      <p class="lead">An agent resends the whole conversation every turn. Providers charge a tenth of the input price or less for the part they still have cached. So where a conversation lives matters more than any single request.</p>
+    </div>
+    <div class="two">
+      <figure class="diagram">
+        <svg viewBox="0 0 360 300" role="img" aria-labelledby="sess-t">
+          <title id="sess-t">Four later turns of a conversation already 100,000 tokens long, on Claude Sonnet 5.5. Each turn reads the cached prefix and writes about 2,000 new tokens. After a 20-minute pause a 1-hour cache is still there, so the turn costs {s(caching.readAfterPause)} to read; with a 5-minute cache the whole prefix is written again for {s(caching.writeAgain)}.</title>
+          <text class="dg-m" x="6" y="14">turn</text>
+          <text class="dg-m" x="354" y="14" text-anchor="end">prefix cost</text>
+          {[21, 22, 23].map((t, i) => (
+            <g>
+              <text class="dg-m" x="6" y={44 + i * 40}>{t}</text>
+              <rect class="dg-bar" x="40" y={32 + i * 40} width={226 + i * 4} height="16" rx="3"></rect>
+              <rect class="dg-bar-acc" x={266 + i * 4} y={32 + i * 40} width="6" height="16" rx="1"></rect>
+              <text class="dg-ma" x="354" y={44 + i * 40} text-anchor="end">{s(caching.readAfterPause)}</text>
+            </g>
+          ))}
+          <path class="dg-line" d="M40 160 H354" stroke-dasharray="3 3"></path>
+          <text class="dg-s" x="40" y="178">a 20-minute pause</text>
+          <text class="dg-m" x="6" y="212">24</text>
+          <rect class="dg-bar" x="40" y="200" width="238" height="16" rx="3"></rect>
+          <text class="dg-ma" x="354" y="212" text-anchor="end">{s(caching.readAfterPause)}</text>
+          <text class="dg-s" x="40" y="234">1-hour cache: still there, read it</text>
+          <rect class="dg-warn" x="40" y="246" width="238" height="16" rx="3"></rect>
+          <text class="dg-wt" x="354" y="258" text-anchor="end">{s(caching.writeAgain)}</text>
+          <text class="dg-s" x="40" y="280">5-minute cache: gone, write it all again</text>
+        </svg>
+        <figcaption>Turns 21 to 24 of a long session. Grey: read from cache. Indigo: the new tokens of each turn. List-price arithmetic on Claude Sonnet 5.5.</figcaption>
+      </figure>
+      <div class="prose">
+        <h3 style="margin-top:0">Sessions stay where their cache is</h3>
+        <p>Moving a session means paying again for the whole context. An 80,000-token Claude Opus 5.5 session would cost {s(sticky.rebuild)} to rebuild on a cold backend, against {s(sticky.perTurn)} for a turn where it is. So a session moves only if the move saves at least 10% plus $0.01 over the rest of the session, and within a task it keeps its model outright.</p>
+        <h3>Longer caches where pauses pay for them</h3>
+        <p>On the four Claude backends, the gateway asks for a 5-minute cache on a session's first turn and an hour from its second. The hour costs {s(caching.hourPremiumPerTurn)} more per turn on a 100,000-token conversation. A person stepping away for 20 minutes then saves a full rewrite. The router counts each team's real share of such pauses when it compares routes. Claude Code sets its own markers, and those go as they are.</p>
+        <h3>Compression that keeps the cache valid</h3>
+        <p>Turned on per team, the rules strip terminal codes, collapse repeated lines and keep the head and tail of tool output over 24,000 characters. They are deterministic, and the model-based method stores its cut once, so every later turn sends the same bytes and the cache still hits.</p>
+        <h3>When a conversation outgrows its model</h3>
+        <p>Length never raises the level. It only rules out models whose window can't hold the conversation plus the reply. A session that outgrows its model moves to one with room at the same level, paying one rebuild. Subagents keep their own routing state, so they don't knock the main conversation off its cache.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="month" aria-labelledby="month-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Part 3</p><h2 id="month-h">A month</h2></div>
+      <p class="lead">Over a month, the gateway sees enough traffic to decide when your own GPUs pay, to send work that can wait to batch prices, to hold every team to a budget, and to learn whether its levels are right.</p>
+    </div>
+
+    <div class="story">
+      <div class="step">
+        <div><p class="num">GPUs</p><h3>Started at break-even, priced as nearly free while they run</h3></div>
+        <div class="body">
+          <div class="two">
+            <figure class="diagram">
+              <svg viewBox="0 0 360 220" role="img" aria-labelledby="shadow-t">
+                <title id="shadow-t">The price the router puts on a running GPU: {Math.round(floor * 100)}% of the API price up to {Math.round(knee * 100)}% load, then rising with the square of the load to the full API price at 100%.</title>
+                <path class="dg-grid" d={`M${X0} ${Y1} H${X1} M${X0} ${py(0.5)} H${X1} M${X0} ${Y0} H${X1}`}></path>
+                <path class="dg-line" d={`M${px(knee)} ${Y1} V${Y0}`} stroke-dasharray="3 3"></path>
+                <path class="dg-acc-line" d={curve}></path>
+                <text class="dg-m" x={X0 - 6} y={Y1 + 4} text-anchor="end">100%</text>
+                <text class="dg-m" x={X0 - 6} y={py(0.5) + 4} text-anchor="end">50%</text>
+                <text class="dg-m" x={X0 - 6} y={Y0 + 4} text-anchor="end">0</text>
+                <text class="dg-m" x={X0} y="206">0% load</text>
+                <text class="dg-ma" x={px(knee)} y="206" text-anchor="middle">{Math.round(knee * 100)}%</text>
+                <text class="dg-m" x={X1} y="206" text-anchor="end">100%</text>
+                <text class="dg-s" x={X0 + 8} y={py(floor) - 8}>{Math.round(floor * 100)}% of API price</text>
+              </svg>
+              <figcaption>Price of a token on a running replica, as a share of the API price.</figcaption>
+            </figure>
+            <div class="prose">
+              <p>Every minute the controller asks what the traffic a model could serve costs at API prices. When that beats the replica's hourly price plus {Math.round(gpu.margin * 100)}% for 10 minutes straight, a replica starts. The shipped <code>gpu-qwen-coder</code> deployment, Qwen3 Coder Next on four H100s at {fmt.usd(gpu.hourly, 0)} an hour, starts above {fmt.usd(gpu.startsAbove, 2)} an hour of such work. It drains when demand stays below break-even for 10 minutes after at least 30 minutes of serving.</p>
+              <p>Honest about the bar: on 11 November 2026 spot prices, only level-1 work could pay for a GPU, for example gpt-oss-20b on one L4 from about 72,000 tokens a minute. Models → GPU break-even in the console shows this for your traffic.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div><p class="num">Batch</p><h3>Work that can wait</h3></div>
+        <div class="body"><p>OpenAI's Batch API and Anthropic's Message Batches go through the same router, among providers with a batch API (about half price; Moonshot 40% off, xAI 20%) and running GPUs with room. GPU work runs at low priority in spare capacity only and moves to a provider's batch API if it hasn't run in 12 hours.</p></div>
+      </div>
+      <div class="step">
+        <div><p class="num">Budgets</p><h3>Refused before it's spent</h3></div>
+        <div class="body"><p>Monthly budgets for the organization, each team and each person, a GPU budget, rate limits, a per-session cap and a per-request ceiling. All are checked before a request is sent. Alerts go out at 80% and 100%. A looping agent at 3 a.m. gets its next request refused, not an email hours later.</p></div>
+      </div>
+      <div class="step">
+        <div><p class="num">Ledger</p><h3>Savings by cause, checked against bills</h3></div>
+        <div class="body"><p>Every request gets a row: actual cost, the baseline model's cost, and savings split into seven causes that add up. Every 6 hours the worker reads each provider's own cost data (Anthropic, OpenAI, AWS, Google Cloud, Azure) and alerts when a settled day differs by at least $1 and 5%. So far only OpenRouter's costs have been compared with a real bill; they matched for every request.</p></div>
+      </div>
+      <div class="step">
+        <div><p class="num">Learning</p><h3>Your own traffic as the benchmark</h3></div>
+        <div class="body">
+          <figure class="diagram">
+            <svg class="wide" viewBox="0 0 720 150" role="img" aria-labelledby="learn-t">
+              <title id="learn-t">The learning loop: exploration routes about 4% of task starts one level up or down; outcome signals record what followed; Reports, Levels compares the arms once each has 200 task starts; an admin applies the recommendation as routing.level_map.</title>
+              <rect class="dg-surface" x="6" y="30" width="156" height="70" rx="8"></rect>
+              <text class="dg-t2" x="20" y="56">Exploration</text><text class="dg-s" x="20" y="76">~4% of task starts,</text><text class="dg-s" x="20" y="92">one level up or down</text>
+              <rect class="dg-surface" x="190" y="30" width="156" height="70" rx="8"></rect>
+              <text class="dg-t2" x="204" y="56">Outcome signals</text><text class="dg-s" x="204" y="76">tests, builds, fix loops,</text><text class="dg-s" x="204" y="92">resends, corrections</text>
+              <rect class="dg-surface" x="374" y="30" width="156" height="70" rx="8"></rect>
+              <text class="dg-t2" x="388" y="56">Reports → Levels</text><text class="dg-s" x="388" y="76">each arm's success,</text><text class="dg-s" x="388" y="92">after 200 task starts</text>
+              <rect class="dg-acc" x="558" y="30" width="156" height="70" rx="8"></rect>
+              <text class="dg-t2" x="572" y="56">Apply</text><text class="dg-s" x="572" y="76">routing.level_map,</text><text class="dg-s" x="572" y="92">by an admin</text>
+              <path class="dg-line" d="M162 65 H184 M346 65 H368 M530 65 H552"></path>
+              <path class="dg-arrow" d="M182 61 L189 65 L182 69Z M366 61 L373 65 L366 69Z M550 61 L557 65 L550 69Z"></path>
+              <path class="dg-line" d="M636 100 V128 H84 V104" stroke-dasharray="3 3"></path>
+              <text class="dg-m" x="360" y="144" text-anchor="middle">the next month starts from the corrected levels</text>
+            </svg>
+          </figure>
+          <p>All opt-in per team. Exploration never touches a named model, a client's <code>X-Route-Floor</code> or a nearly spent budget, and only starts a task whose cache is cold. A report line reads like "coding level 3: level 2 does as well in 98%; consider lowering". A learned router can also correct levels from outcomes; it proves itself in shadow mode first and routes only when at least 80% sure. All of this is tested against mocks and synthetic traffic, not yet real traffic.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <PreProd />
+    <p class="lead" style="max-width:none">Next: <a href="/savings/">where the savings come from, and a calculator</a>, or the full story in the docs, starting with <a href="/docs/how-it-all-works/">How it all works</a>.</p>
+  </div>
+</section>
+</Base>

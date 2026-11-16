@@ -1,0 +1,134 @@
+# Build the site, check its links, and on main upload it to S3 behind CloudFront (deploy/aws/website.yaml) for
+# https://meritorder.dev. Pull requests build and check only.
+#
+# The docs and the routing simulator's results come from the main repo (Merit-Order/meritorder). A copy is committed in
+# snapshot/, so every build works without access to it. On main (push, the daily run, a run by hand, or a
+# docs-updated dispatch from the main repo) the build first refreshes snapshot/ from the main repo when it can read it:
+# once it is public, or with a read-only token in the MERITORDER_REPO_TOKEN secret while it is private. The main repo
+# triggers a rebuild with:
+#   gh api repos/Merit-Order/website/dispatches -f event_type=docs-updated
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'   # daily, to pick up doc and price changes in the main repo
+  repository_dispatch:
+    types: [docs-updated]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Can this run read the main repo?
+        id: src
+        if: github.event_name != 'pull_request'
+        env:
+          TOKEN: ${{ secrets.MERITORDER_REPO_TOKEN }}
+        run: |
+          export GIT_TERMINAL_PROMPT=0
+          for r in Merit-Order/meritorder therick/meritorder; do
+            url="https://github.com/$r"
+            if [ -n "$TOKEN" ]; then url="https://x-access-token:${TOKEN}@github.com/$r"; fi
+            if git ls-remote "$url" HEAD >/dev/null 2>&1; then
+              echo "repo=$r" >> "$GITHUB_OUTPUT"; echo "Refreshing from $r"; exit 0
+            fi
+          done
+          echo "::notice::Can't read the main repo (private, and no MERITORDER_REPO_TOKEN), so the site is built from the committed snapshot/."
+
+      - name: Check out the main repo
+        if: steps.src.outputs.repo != ''
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          repository: ${{ steps.src.outputs.repo }}
+          path: .cache/meritorder-src
+          token: ${{ secrets.MERITORDER_REPO_TOKEN || github.token }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e  # v6
+        if: steps.src.outputs.repo != ''
+        with: {version: "0.10.9"}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Refresh the docs and the routing simulator's results from the main repo
+        if: steps.src.outputs.repo != ''
+        env:
+          MERITORDER_REPO: .cache/meritorder-src
+        run: |
+          npm run refresh
+          if ! git diff --quiet -- snapshot; then
+            echo "::notice::snapshot/ is behind the main repo; this build uses the fresh copy. Run npm run refresh and commit to update it."
+            git diff --stat -- snapshot | tail -n 5
+          fi
+
+      - name: Playwright's Chromium (renders the mermaid diagrams)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Link check
+        run: npm run check:links
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: site
+          path: dist/
+          retention-days: 14
+
+  # On main only, once the stack exists: the role, bucket and distribution come from repository variables
+  # (deploy/aws/README.md). The role trusts main of this repository alone, so the job names no environment (that would
+  # change the token's subject).
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.SITE_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    concurrency: {group: site-deploy, cancel-in-progress: false}
+    env:
+      BUCKET: ${{ vars.SITE_BUCKET }}
+      DISTRIBUTION: ${{ vars.SITE_DISTRIBUTION_ID }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with: {name: site, path: dist}
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          role-to-assume: ${{ vars.SITE_DEPLOY_ROLE_ARN }}
+          role-session-name: website-${{ github.run_id }}
+          aws-region: us-east-1
+      - name: Upload (hashed assets first, so no new page points at a file that isn't there yet)
+        run: |
+          aws s3 sync dist/_astro "s3://$BUCKET/_astro" --cache-control "public, max-age=31536000, immutable" --only-show-errors
+          aws s3 sync dist "s3://$BUCKET" --exclude "_astro/*" --cache-control "no-cache" --delete --only-show-errors
+          aws s3 sync dist/_astro "s3://$BUCKET/_astro" --cache-control "public, max-age=31536000, immutable" --delete --only-show-errors
+      - name: Invalidate CloudFront
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths "/*" --query Invalidation.Id --output text
+      - name: Smoke test
+        run: |
+          for u in https://meritorder.dev/ https://meritorder.dev/savings/ https://meritorder.dev/docs/; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$u"); echo "$u $code"; [ "$code" = 200 ] || exit 1
+          done
+          echo "Deployed to https://meritorder.dev/" >> "$GITHUB_STEP_SUMMARY"

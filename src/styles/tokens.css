@@ -1,0 +1,59 @@
+/* Design B, "Clean technical": white with one indigo accent, Geist and Geist Mono, hairline panels.
+   The tokens match the approved mockups (b-landing, b-docs) exactly. Theme: data-theme on <html>, set before
+   first paint from localStorage "starlight-theme" (shared with the docs), else the system setting. */
+:root {
+  --bg: #FFFFFF; --bg-2: #F7F7F9; --surface: #FFFFFF; --line: #E7E7EC; --line-2: #D6D6DE;
+  --fg: #0E0F14; --fg-2: #3B3E4A; --muted: #62677A;
+  --accent: #4F46E5; --accent-fg: #FFFFFF; --accent-text: #4338CA; --accent-soft: #EEEDFD; --accent-line: #C9C6F8;
+  --bar: #C4C6D2; --warn: #9A5B00; --warn-soft: #FFF6E6; --warn-line: #F0D6A8;
+  /* Stacked bars (Savings, failed attempts): model spend strong, time lost soft; validated with the dataviz checks. */
+  --fc-spend: #6B7080; --fc-lost: #A3A7B5; --fc-mo-spend: #4F46E5; --fc-mo-lost: #A9A5F4;
+  --code-bg: #0E0F14; --code-fg: #E6E7EE; --code-c: #8A8EA0; --code-k: #A5A1FF; --code-s: #E7C98E;
+  /* Docs code blocks (b-docs): light panels in light mode. */
+  --doc-code-bg: #F7F7F9; --doc-code-fg: #1F2130;
+  --font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --maxw: 1120px; --r: 10px;
+  /* Mermaid diagrams (rendered at build time, coloured from these). */
+  --mm-node: var(--surface); --mm-node-line: var(--line-2); --mm-text: var(--fg); --mm-edge: var(--muted);
+  --mm-alt: var(--accent-soft); --mm-alt-2: var(--bg-2); --mm-bg: var(--bg-2); --mm-cluster: var(--bg-2);
+  --mm-cluster-line: var(--line-2); --mm-label-bg: var(--bg-2); --mm-note: var(--warn-soft);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B0C0F; --bg-2: #101116; --surface: #14151B; --line: #23252E; --line-2: #30333F;
+    --fg: #EDEEF3; --fg-2: #C3C6D2; --muted: #9A9EAE;
+    --accent: #8C88FF; --accent-fg: #0B0C0F; --accent-text: #A9A6FF; --accent-soft: #1C1B36; --accent-line: #3B3880;
+    --bar: #3E4150; --warn: #F2B860; --warn-soft: #211A0E; --warn-line: #4A3815; --fc-spend: #8A8E9E; --fc-lost: #5C6070; --fc-mo-spend: #8682F7; --fc-mo-lost: #5550B5;
+    --code-bg: #08090C; --code-fg: #E6E7EE; --code-c: #7E8296; --code-k: #A9A6FF; --code-s: #E7C98E;
+    --doc-code-bg: #111217; --doc-code-fg: #E6E7EE;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B0C0F; --bg-2: #101116; --surface: #14151B; --line: #23252E; --line-2: #30333F;
+  --fg: #EDEEF3; --fg-2: #C3C6D2; --muted: #9A9EAE;
+  --accent: #8C88FF; --accent-fg: #0B0C0F; --accent-text: #A9A6FF; --accent-soft: #1C1B36; --accent-line: #3B3880;
+  --bar: #3E4150; --warn: #F2B860; --warn-soft: #211A0E; --warn-line: #4A3815; --fc-spend: #8A8E9E; --fc-lost: #5C6070; --fc-mo-spend: #8682F7; --fc-mo-lost: #5550B5;
+  --code-bg: #08090C; --code-fg: #E6E7EE; --code-c: #7E8296; --code-k: #A9A6FF; --code-s: #E7C98E;
+  --doc-code-bg: #111217; --doc-code-fg: #E6E7EE;
+  color-scheme: dark;
+}
+
+/* Mermaid figures: one inline SVG per diagram, coloured by the variables above. */
+.mermaid-figure { margin: 12px 0 32px; }
+.mermaid-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: var(--bg-2); }
+.mermaid-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mermaid-scroll svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+.mermaid-scroll svg .node rect, .mermaid-scroll svg .node polygon, .mermaid-scroll svg .node circle, .mermaid-scroll svg .node path { stroke-width: 1px; }
+.mermaid-scroll svg .edgeLabel, .mermaid-scroll svg .edgeLabel p, .mermaid-scroll svg .labelBkg { background-color: var(--bg-2) !important; }
+.mermaid-scroll svg .edgeLabel rect { fill: var(--bg-2) !important; }
+.mermaid-scroll svg .edgeLabel { color: var(--fg-2); font-size: 13px; }
+.mermaid-scroll svg .flowchart-link, .mermaid-scroll svg .transition { stroke: var(--muted) !important; }
+.mermaid-scroll svg marker path, .mermaid-scroll svg .arrowheadPath { fill: var(--muted) !important; stroke: var(--muted) !important; }
+.mermaid-scroll svg .state-start, .mermaid-scroll svg .state-end { fill: var(--fg) !important; stroke: var(--fg) !important; }
+.mermaid-scroll svg .end-state-inner { fill: var(--bg-2) !important; }
+.mermaid-scroll svg .cluster rect { fill: var(--surface) !important; stroke: var(--line-2) !important; }
+.mermaid-scroll svg .nodeLabel, .mermaid-scroll svg .label { color: var(--fg); }
+.mermaid-scroll svg [data-look="neo"] { filter: none; }

@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import { Image } from 'astro:assets';
+import dispatchL from '../assets/console/dispatch-light-1440.png';
+import dispatchD from '../assets/console/dispatch-dark-1440.png';
+import overviewL from '../assets/console/reports-overview-light-1440.png';
+import overviewD from '../assets/console/reports-overview-dark-1440.png';
+import levelsL from '../assets/console/reports-levels-light-1440.png';
+import levelsD from '../assets/console/reports-levels-dark-1440.png';
+import gpusL from '../assets/console/gpus-light-1440.png';
+import gpusD from '../assets/console/gpus-dark-1440.png';
+import controlsL from '../assets/console/controls-light-1440.png';
+import controlsD from '../assets/console/controls-dark-1440.png';
+
+const shots = [
+  { l: dispatchL, d: dispatchD, title: 'Dispatch', alt: 'The Dispatch page: spend today and this month, the merit-order stack of models by price per million tokens, a live feed of requests with the model asked for and served, and backend health.',
+    look: 'The merit-order chart: each bar is a model, as wide as the tokens it served and as tall as what they cost after caching. In the live feed, "auto → claude-haiku" shows what each request asked for and got, at which level, and what it saved.' },
+  { l: overviewL, d: overviewD, title: 'Reports, Overview', alt: 'The Reports overview: spent, cost without Merit Order, saved and cache hit rate; daily spend against the baseline; savings by cause; spend by model; top teams and users.',
+    look: 'Savings by cause: routing, prompt caching, self-hosting and batch, stacked per day. They add up to the total because each is computed against the one before.' },
+  { l: levelsL, d: levelsD, title: 'Reports, Levels', alt: 'The Levels report: the rules that give each request a level, what each level means, and whether each level is right for the work, from exploration.',
+    look: 'Every level rule and its word list, in the open. With exploration on, each level shows how often the level below did as well, and a recommendation once each side has 200 task starts.' },
+  { l: gpusL, d: gpusD, title: 'GPUs', alt: 'The GPUs page: deployments with their state, replicas and where they run, utilization, demand at API prices against the GPU price, and stop, drain and pin controls.',
+    look: 'Each deployment\'s demand at API prices next to its hourly price, the state it is in (API only, starting, serving, draining), and the stop, drain and pin switches.' },
+  { l: controlsL, d: controlsD, title: 'Controls', alt: 'The Controls page: organization and GPU budgets with a month-end projection, safeguards such as the per-request ceiling, and team budgets.',
+    look: 'Every cost next to the switch that controls it: the organization budget and its projection, the per-request ceiling, GPU caps, and each team\'s budget.' },
+];
+---
+<Base title="Demo" description="A static demo of the Merit Order console with sample data at dev.meritorder.dev: dispatch, reports, levels, GPUs and controls, and what to look at on each.">
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Demo</p>
+    <h1>See the console without installing anything.</h1>
+    <p class="sub">The demo at dev.meritorder.dev is the Merit Order console running in your browser on sample data. Nothing is sent anywhere and there's nothing to sign in to.</p>
+    <div class="ctas" style="margin-top:24px">
+      <a class="btn btn-primary" href="https://dev.meritorder.dev">Open the live demo</a>
+      <a class="btn btn-ghost" href="/docs/quickstart/">Run it yourself</a>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="look-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">What to look at</p><h2 id="look-h">Five pages worth a minute each.</h2></div>
+      <p class="lead">These pictures are design mockups of the console with made-up sample data (an example organization in mid-November 2026). They show what the pages look like, not measured results. The figures in them, such as the share saved, are illustrations.</p>
+    </div>
+    <div class="shots">
+      {shots.map((s, i) => (
+        <figure class="shot">
+          <Image class="theme-light" src={s.l} alt={s.alt} widths={[720, 1200]} sizes="(max-width: 860px) 100vw, 560px" loading={i < 2 ? 'eager' : 'lazy'} format="webp" quality={78} />
+          <Image class="theme-dark" src={s.d} alt={s.alt} widths={[720, 1200]} sizes="(max-width: 860px) 100vw, 560px" loading="lazy" format="webp" quality={78} />
+          <figcaption><b>{s.title}.</b> {s.look}</figcaption>
+        </figure>
+      ))}
+    </div>
+  </div>
+</section>
+</Base>
+<style>
+  .shot :global(img) { aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; }
+</style>

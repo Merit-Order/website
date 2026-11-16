@@ -1,0 +1,377 @@
+---
+import Base from '../layouts/Base.astro';
+import { FAIL_ORDER, failSplit, failNote, niceTicks } from '../lib/sim.js';
+import { data, caching, sticky, compression, batch, gpu, responseCache, budget, pricesDate, std, dev, ov, month, devMonth, HUMAN, NAMES, NOTES, perFinished, simDate, simCommit, sim, fmt } from '../lib/numbers.js';
+const s = fmt.sig;
+const E = ov(std, 'auto-expected-cost'), SON = ov(std, 'always-sonnet'), OPU = ov(std, 'always-opus'), THR = ov(std, 'auto-threshold'), CPS = ov(std, 'auto-cost-per-success');
+const dE = ov(dev, 'auto-expected-cost'), dC = ov(dev, 'auto-cost-per-success');
+const less = (a: number, b: number) => (a <= b ? `${Math.round((1 - a / b) * 100)}% less` : `${Math.round((a / b - 1) * 100)}% more`);
+const SHOWN = ['always-opus', 'always-sonnet', 'always-cheapest', 'auto-threshold', 'auto-cost-per-success', 'auto-expected-cost', 'auto-expected-cost-cascade', 'oracle'];
+const scenarios = [
+  { id: 'standard', sc: std, title: `${std.settings.tasks.toLocaleString('en-US')} tasks, the standard mix`, sub: `${Math.round(Object.entries(std.population.classes).filter(([c]) => c.startsWith('coding')).reduce((t, [, v]) => t + (v as number), 0) / std.settings.tasks * 100)}% coding, the rest chat and analysis: a gateway in front of coding agents and chat` },
+  { id: 'coding-only', sc: dev, title: `${dev.settings.tasks.toLocaleString('en-US')} coding tasks`, sub: 'Claude Code 75%, a small agent such as Codex 15%, chat with code 10%: the ten developers on the home page' },
+];
+const CLASS_NAMES: Record<string, string> = { 'coding-easy': 'Coding, easy', 'coding-medium': 'Coding, medium', 'coding-hard': 'Coding, hard', 'coding-very-hard': 'Coding, very hard', 'chat-short': 'Short chat', chat: 'Chat', analysis: 'Analysis' };
+const HS = Object.keys(std.human_sensitivity['always-opus']).map(Number).sort((a, b) => a - b);
+// Counting the cost of failed attempts: rendered at the simulator's price, redrawn in the browser for the others.
+if (!HS.includes(HUMAN)) throw new Error(`savings: the run's price per failed attempt, $${HUMAN}, isn't one of the sensitivity prices`);
+const fcData = { rows: FAIL_ORDER.map((k) => { const o = std.strategies[k].overall; return [k, o.tasks, o.cost, o.finished, o.failed_attempts]; }) };
+// Check the split against the simulator's own totals at every price, so the chart can't drift from the run.
+for (const k of FAIL_ORDER) for (const h of HS) {
+  const want = std.human_sensitivity[k][h.toFixed(1)] ?? std.human_sensitivity[k][String(h)];
+  const got = failSplit(std.strategies[k].overall, h).total;
+  if (Math.abs(got - want) > 0.005) throw new Error(`savings: ${k} at $${h}: ${got} from the counts, ${want} in the run`);
+}
+const fcBy = Object.fromEntries(FAIL_ORDER.map((k) => [k, failSplit(std.strategies[k].overall, HUMAN)]));
+const fcRows = FAIL_ORDER.map((k) => ({ k, ...fcBy[k] }));
+const fcTicks = niceTicks(Math.max(...fcRows.map((r) => r.total)));
+const fcMax = fcTicks[fcTicks.length - 1];
+const fcPct = (v: number) => `${((v / fcMax) * 100).toFixed(2)}%`;
+const fcStep = fcPct(fcTicks[1] ?? fcMax);
+const fcSay = (r: any) => `${NAMES[r.k]}: ${fmt.usd(r.spend, 2)} model spend plus ${fmt.usd(r.lost, 2)} time lost to failed attempts, ${fmt.usd(r.total, 2)} in total per finished task; ${fmt.pct1(r.finished)} of tasks finished.`;
+// The calculator gets the counts it scales, nothing more.
+const calcData = Object.fromEntries(Object.entries(sim.scenarios).map(([k, sc]: [string, any]) => [k, {
+  tasks: sc.settings.tasks,
+  rows: SHOWN.map((n) => { const o = sc.strategies[n].overall; return [n, o.tasks, o.cost, o.finished, o.failed_attempts]; }),
+}]));
+const mechanisms = [
+  {
+    id: 'routing', title: 'Routing by expected total cost', tag: 'routing simulator',
+    does: 'Gives each task a level from its wording (tools only say it is coding), reads each model\'s chance of finishing work at that level from published benchmarks, and sends the task to the model and route with the lowest expected total cost: the try, plus the chance it fails times a person\'s time and the next attempt.',
+    money: `Most tasks don't need the strongest model, and a cheap model that fails costs more than it saves. On the simulator's ${std.settings.tasks.toLocaleString('en-US')} standard tasks, the default spent ${fmt.usd(E.cost_per_finished, 2)} on models per finished task, against ${fmt.usd(SON.cost_per_finished, 2)} with Claude Sonnet 5.5 for everything and ${fmt.usd(OPU.cost_per_finished, 2)} with Claude Opus 5.5, and finished ${fmt.pct1(E.success_rate)} of tasks against ${fmt.pct1(SON.success_rate)} and ${fmt.pct1(OPU.success_rate)}.`,
+    not: `When most of your work is at the top level, where only the dearest models have a good chance. On coding-only work, cost per success and the default come out about even once failed attempts are counted (${fmt.usd(perFinished(dC, HUMAN), 2)} and ${fmt.usd(perFinished(dE, HUMAN), 2)} per finished task). The level rules are word lists, so a listed word can raise a task that isn't hard ("security" in "update the security page's footer"). And the chances come from benchmarks, not yet from your own outcomes.`,
+    measured: 'Offline, by the routing simulator (below). Live, by the "routing" cause in the ledger: the baseline model\'s cost minus the served model\'s, at list prices, before the other causes, and by the outcome report.',
+  },
+  {
+    id: 'caching', title: 'Prompt caching', tag: 'list-price arithmetic',
+    does: 'Adds Claude\'s cache markers when the client set none, sets OpenAI\'s prompt_cache_key, and never changes the early part of the prompt. On the four Claude backends it asks for a 1-hour cache from a session\'s second turn.',
+    money: `Cached tokens cost a tenth of the input price or less. On a 100,000-token conversation, the hour costs ${s(caching.hourPremiumPerTurn)} more per turn; after a 20-minute pause the next turn reads the prefix for ${s(caching.readAfterPause)} instead of writing it again for ${s(caching.writeAgain)}.`,
+    not: 'When the harness already caches well. Claude Code sets its own markers, and caching a client set up itself isn\'t counted as a Merit Order saving. An agent that never pauses pays the hour\'s premium for nothing (about 20% more per turn on Sonnet and Opus 5.5).',
+    measured: 'The "prompt caching" cause, only for caching the gateway added. Checked live: gateway-added Claude caching, turns 2 and later at a tenth of the price. Not yet checked against an Anthropic invoice.',
+  },
+  {
+    id: 'sticky', title: 'Sticky sessions', tag: 'list-price arithmetic',
+    does: 'Keeps a session on the route that holds its cache unless moving saves at least 10% plus $0.01 over the rest of the session. Within a task it keeps its model outright.',
+    money: `Rebuilding an 80,000-token Claude Opus 5.5 session on a cold backend costs ${s(sticky.rebuild)}, against ${s(sticky.perTurn)} for a turn where it is. Stickiness stops a session bouncing between Bedrock and Anthropic.`,
+    not: 'It saves nothing on one-off requests. Sessions that switched backends, and the rebuild cost they paid, aren\'t reported yet.',
+    measured: 'Indirectly: it shows up as cache reads in "prompt caching" and as lower costs per turn.',
+  },
+  {
+    id: 'compression', title: 'Tool-output compression', tag: 'illustration · opt-in',
+    does: 'Deterministic rules strip terminal codes and trailing spaces, collapse repeated lines, and keep the first 60% and last 40% of tool output over 24,000 characters. An optional model (LLMLingua-2) drops the least useful words from prose, protecting paths, numbers, identifiers and error lines.',
+    money: `A 100,000-character test log becomes about 24,000 characters: roughly ${compression.tokens.toLocaleString('en-US')} fewer tokens. On Claude Sonnet 5.5 that is ${s(compression.arrive)} less on the turn it arrives and ${s(compression.later)} less on every later turn.`,
+    not: 'On short tool output (under 4,000 characters is left alone), and the model-based method removes nearly nothing from code, logs and JSON (5 to 13% of a web page or docs). Whether agents still succeed on compressed results hasn\'t been measured.',
+    measured: 'Two causes: "compression (rules)" and "compression (model)".',
+  },
+  {
+    id: 'batch', title: 'Batch prices and GPU headroom', tag: 'illustration',
+    does: 'Accepts OpenAI\'s Batch API and Anthropic\'s Message Batches, routes each request like a live one among providers with a batch API and running GPUs with room, then joins the results.',
+    money: `Batch APIs cost about half the live price (Moonshot 40% off, xAI 20%). 10,000 summaries of 5,000 tokens in and 500 out on Claude Sonnet 5.5: ${fmt.usd(batch.live, 0)} live, ${fmt.usd(batch.half, 0)} at the batch price.`,
+    not: 'For interactive work, which can\'t wait up to a day. And you could get the batch discount from the provider directly; the ledger records it as its own cause for that reason.',
+    measured: 'The "batch discount" cause. Batch APIs are tested against mocks of ten providers, not yet the real ones.',
+  },
+  {
+    id: 'gpus', title: 'Your GPUs at break-even', tag: 'shipped configuration',
+    does: `Starts a replica when the traffic it could serve would cost more than its hourly price plus ${Math.round(gpu.margin * 100)}% at API prices for 10 minutes, and drains it when demand falls below break-even. While it runs, the router prices it at ${Math.round(gpu.shadow_floor * 100)}% of the API price up to ${Math.round(gpu.shadow_knee * 100)}% load.`,
+    money: `Steady load is cheaper on a GPU you already pay for. The shipped Qwen3 Coder Next deployment (four H100s, ${fmt.usd(gpu.hourly, 0)} an hour) starts above ${fmt.usd(gpu.startsAbove, 2)} an hour of such work.`,
+    not: 'Today, mostly. On 11 November 2026 spot prices only level-1 work could pay for a GPU, because cheap API models set a high bar. Real GPUs on a real cloud haven\'t been tested yet.',
+    measured: 'The "self-hosting" cause; GPU time is compared with cloud bills by the deployment tag.',
+  },
+  {
+    id: 'cache', title: 'Response cache', tag: 'illustration · opt-in',
+    does: 'An exact-match cache of responses, per team or per request, keyed by team so answers never cross teams.',
+    money: `A pipeline sending the same $0.02 request 5,000 times a day, with a one-hour TTL, pays about 24 times a day (${fmt.usd(responseCache.with, 2)}) instead of 5,000 (${fmt.usd(responseCache.without, 0)}).`,
+    not: 'For agents: their turns are almost never repeated. It stores content, so it\'s off unless a team turns it on.',
+    measured: 'The "response cache" cause: a hit costs $0 and records the original cost as the saving.',
+  },
+  {
+    id: 'budgets', title: 'Budgets and runaway caps', tag: 'shipped configuration',
+    does: 'Monthly budgets for the organization, teams and people, a per-session cap and a per-request ceiling, all checked before a request is sent.',
+    money: `Not a saving on any one request: it caps the bad day. A request for 128,000 output tokens on Claude Fable 5.2 with 500,000 tokens in has a worst case of ${fmt.usd(budget.worst, 2)}, under the shipped ${fmt.usd(budget.ceiling, 0)} ceiling. A team's max_session_usd: 20 stops a looping agent at $20, its subagents included.`,
+    not: 'It doesn\'t make good traffic cheaper.',
+    measured: 'Refusals say which limit they hit; alerts go out at 80% and 100%.',
+  },
+];
+---
+<Base title="Savings" description="Where Merit Order's savings come from, when each mechanism doesn't help, the routing simulator's results with their assumptions, and a calculator that scales them to your team.">
+<section class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Savings</p>
+    <h1>Where the money comes from.</h1>
+    <p class="sub">Each mechanism, what it saves with a worked example, when it doesn't help, and how the ledger measures it. Then the routing simulator's results and a calculator that scales them to your team. Prices of {pricesDate}; yours will drift as the price list refreshes.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="mech-h">
+  <div class="wrap">
+    <h2 id="mech-h" class="sr-only">Mechanisms</h2>
+    <div class="story">
+      {mechanisms.map((m) => (
+        <div class="step" id={m.id}>
+          <div><p class="num">{m.tag}</p><h3>{m.title}</h3></div>
+          <div class="body">
+            <p><strong>What it does.</strong> {m.does}</p>
+            <p><strong>Where the money comes from.</strong> {m.money}</p>
+            <p><strong>When it doesn't help.</strong> {m.not}</p>
+            <p><strong>How it's measured.</strong> {m.measured}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div class="two" style="margin-top:48px">
+      <div class="prose">
+        <h3 style="margin-top:0">Savings by cause, so they add up</h3>
+        <p>Every ledger row has the actual cost, the cost on the team's baseline model (<code>baseline_model</code>, Claude Sonnet 5.5 in the shipped config) at API prices without the caching Merit Order added, and savings split into seven causes. The causes are computed in a fixed order, each against the result of the previous one, so there is no double counting. Non-streamed replies also carry <code>x-meritorder-cost-usd</code>, <code>x-meritorder-baseline-usd</code> and <code>x-meritorder-savings-usd</code>.</p>
+      </div>
+      <div class="prose">
+        <h3 style="margin-top:0">Checked against your bills</h3>
+        <p>The worker reads each provider's own cost data every 6 hours: Anthropic's and OpenAI's cost APIs, AWS Cost Explorer or CUR 2.0, the Google Cloud billing export, and Azure Cost Management. It compares them with the ledger by provider, model and day, and alerts when a settled day differs by at least $1 and 5%. So far only OpenRouter's recorded costs have been compared with a real bill (they matched for every request); the other sources run against mocks.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="simulated" aria-labelledby="sim-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Routing, simulated</p><h2 id="sim-h">What the routing simulator says.</h2></div>
+      <p class="lead">Every number about routing on this site comes from <code>scripts/routing_sim.py</code> in the main repository, run on its current code (<code>{simCommit}</code>, {simDate}). It is a simulation: no model is called, and none of this is measured on live traffic yet.</p>
+    </div>
+    <div class="two">
+      <div class="prose">
+        <h3 style="margin-top:0">How it works</h3>
+        <p>The simulator draws tasks from a population of seven classes, from short chat to very hard coding, each with a difficulty, a number of turns and a context size, sent by Claude Code, a small agent such as Codex, or chat. Each strategy routes every task with the gateway's own router code. Whether an attempt succeeds is drawn from the model's published benchmark ability against the task's difficulty; a failed attempt is retried, up to {std.settings.max_attempts} attempts, and is priced at ${HUMAN} of someone's time (noticing, asking again, waiting, cleaning up). Tokens are priced on the main repo's price list of {pricesDate}, with cache writes, reads and rebuilds after pauses ({fmt.pct(std.settings.pause_share)} of later turns).</p>
+        <p>"Always" strategies send every task to one model. The oracle knows in advance which cheapest model would succeed: no router can do that, so it is a lower bound.</p>
+      </div>
+      <div class="prose">
+        <h3 style="margin-top:0">Where it doesn't win</h3>
+        <ul>
+          <li>On coding-only work, cost per success spends less on models than the default ({fmt.usd(dC.cost_per_finished, 2)} against {fmt.usd(dE.cost_per_finished, 2)} per finished task) and the two are about even in total, counting failed attempts ({fmt.usd(perFinished(dC, HUMAN), 2)} and {fmt.usd(perFinished(dE, HUMAN), 2)}).</li>
+          <li>On the standard mix the default spends more on models than cost per success ({fmt.usd(E.cost_per_finished, 2)} against {fmt.usd(CPS.cost_per_finished, 2)}); it wins by finishing more tasks ({fmt.pct1(E.success_rate)} against {fmt.pct1(CPS.success_rate)}), which only shows once failed attempts are counted.</li>
+          <li>On short chat it often picks a dearer model than it needs: fractions of a cent a task, but more than the threshold.</li>
+          <li>Escalating inside a task (opt-in) finished {fmt.pct1(ov(std, 'auto-expected-cost-cascade').success_rate)} of tasks against {fmt.pct1(E.success_rate)}, but at {fmt.usd(ov(std, 'auto-expected-cost-cascade').total_per_finished_with_human, 2)} against {fmt.usd(E.total_per_finished_with_human, 2)} per finished task in total, counting failed attempts.</li>
+          <li>The oracle needs {fmt.usd(ov(std, 'oracle').cost_per_finished, 2)} of model spend per finished task against the default's {fmt.usd(E.cost_per_finished, 2)}: routing that knew each task's difficulty in advance could still do much better.</li>
+        </ul>
+      </div>
+    </div>
+
+    {scenarios.map(({ id, sc, title, sub }) => (
+      <div style="margin-top:44px" id={`sim-${id}`}>
+        <h3 style="margin-bottom:4px">{title}</h3>
+        <p class="note" style="margin-top:0">{sub}. Seed {sc.settings.seed}.</p>
+        <div class="table-wrap" tabindex="0" role="region" aria-label={`Simulated results, ${title}, scrolls sideways`}>
+          <table class="dt">
+            <caption class="sr-only">Simulated results by strategy, {title}</caption>
+            <thead><tr><th>Strategy</th><th class="r">Finished</th><th class="r">Models, per finished task</th><th class="r">Total, counting failed attempts</th><th class="r">90% interval of the total</th><th class="r">Models, vs Sonnet</th></tr></thead>
+            <tbody>
+              {SHOWN.map((k) => {
+                const o = sc.strategies[k].overall;
+                const iv = sc.intervals?.[k]?.total_per_finished_with_human;
+                return <tr class:list={{ mo: k === 'auto-expected-cost' }}><td>{NAMES[k]}{NOTES[k] && <small>{NOTES[k]}</small>}</td><td class="r">{fmt.pct1(o.success_rate)}</td><td class="r">{fmt.usd(o.cost_per_finished, o.cost_per_finished < 0.1 ? 3 : 2)}</td><td class="r">{fmt.usd(o.total_per_finished_with_human, 2)}</td><td class="r">{iv ? `${fmt.usd(iv[0], 2)} to ${fmt.usd(iv[1], 2)}` : ''}</td><td class="r">{k === 'always-sonnet' ? '' : less(o.cost, sc.strategies['always-sonnet'].overall.cost)}</td></tr>;
+              })}
+            </tbody>
+          </table>
+        </div>
+        <details class="calc-method" style="margin-top:14px">
+          <summary>By task class, the default against Sonnet for everything</summary>
+          <div class="table-wrap" tabindex="0" role="region" aria-label="By task class, scrolls sideways">
+            <table class="dt">
+              <thead><tr><th>Class</th><th class="r">Tasks</th><th class="r">Default: finished</th><th class="r">per finished task</th><th class="r">Sonnet: finished</th><th class="r">per finished task</th></tr></thead>
+              <tbody>
+                {sc.classes.map((c: string) => {
+                  const e = sc.strategies['auto-expected-cost'].by_class[c], b = sc.strategies['always-sonnet'].by_class[c];
+                  return <tr><td>{CLASS_NAMES[c] || c}</td><td class="r">{e.tasks.toLocaleString('en-US')}</td><td class="r">{fmt.pct1(e.success_rate)}</td><td class="r">{fmt.sig(e.cost_per_finished)}</td><td class="r">{fmt.pct1(b.success_rate)}</td><td class="r">{fmt.sig(b.cost_per_finished)}</td></tr>;
+                })}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    ))}
+
+    <div class="fc" id="failed-attempts" data-fc={JSON.stringify(fcData)} data-names={JSON.stringify(NAMES)}>
+      <h3 id="fc-h" style="margin-bottom:4px">Counting the cost of failed attempts</h3>
+      <p class="note" style="margin-top:0">A failed attempt costs someone time: noticing it, asking again, waiting, and cleaning up. Here that time has a price per failed attempt. The price is an assumption you can change. The routing doesn't change with it; only the totals do. Per finished task, on the standard mix.</p>
+      <div class="fc-ctl">
+        <span class="lbl" id="fc-price-l">Price per failed attempt</span>
+        <div class="radio" role="radiogroup" aria-labelledby="fc-price-l">
+          {HS.map((h) => <label><input type="radio" name="fc-price" value={h} checked={h === HUMAN} /> ${h}</label>)}
+        </div>
+      </div>
+      <ul class="fc-legend" aria-label="Legend">
+        <li><span class="fc-sw" aria-hidden="true"><i style="background:var(--fc-spend)"></i></span>Model spend</li>
+        <li><span class="fc-sw" aria-hidden="true"><i style="background:var(--fc-lost)"></i></span>Time lost to failed attempts</li>
+        <li><span class="fc-sw" aria-hidden="true"><i style="background:var(--fc-mo-spend)"></i><i style="background:var(--fc-mo-lost)"></i></span>The default, highlighted</li>
+      </ul>
+      <div class="fc-chart" role="list" aria-label="Per finished task, model spend plus time lost to failed attempts, by strategy" style={`--fc-step:${fcStep}`}>
+        {fcRows.map((r) => (
+          <div class:list={['fc-row', { mo: r.k === 'auto-expected-cost' }]} role="listitem" data-k={r.k}>
+            <div class="fc-nm">{NAMES[r.k]}<small>{fmt.pct1(r.finished)} of tasks finished</small></div>
+            <div class="fc-track" aria-hidden="true">
+              <div class:list={['fc-bar', { solo: r.lost === 0 }]} style={`width:${fcPct(r.total)}`}><span class="fc-s" style={`flex:${r.spend} 1 0`}></span><span class="fc-l" style={`flex:${r.lost} 1 0`}></span></div>
+              <span class="fc-t" style={`left:${fcPct(r.total)}`}>{fmt.usd(r.total, 2)}</span>
+            </div>
+            <span class="sr-only">{fcSay(r)}</span>
+          </div>
+        ))}
+        <div class="fc-row fc-axis-row" aria-hidden="true"><div class="fc-nm"></div><div class="fc-axis">{fcTicks.map((t) => <span style={`left:${fcPct(t)}`}>{fmt.usd(t, t % 1 ? 2 : 0)}</span>)}</div></div>
+      </div>
+      <div class="fc-tip" hidden aria-hidden="true"></div>
+      <p class="note fc-note" aria-live="polite">{failNote(fcBy, HUMAN).join(' ')}</p>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="The same numbers as a table, scrolls sideways">
+        <table class="dt fc-table">
+          <caption class="sr-only">Per finished task at ${HUMAN} per failed attempt, standard mix</caption>
+          <thead><tr><th>Strategy</th><th class="r">Model spend</th><th class="r">Time lost to failed attempts</th><th class="r">Total</th><th class="r">Tasks finished</th></tr></thead>
+          <tbody>
+            {fcRows.map((r) => <tr class:list={{ mo: r.k === 'auto-expected-cost' }}><td>{NAMES[r.k]}</td><td class="r">{fmt.usd(r.spend, 2)}</td><td class="r">{fmt.usd(r.lost, 2)}</td><td class="r">{fmt.usd(r.total, 2)}</td><td class="r">{fmt.pct1(r.finished)}</td></tr>)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">The main repository's <a href="/docs/evals/#offline-vs-live">Offline vs live</a> and <a href="/docs/routing/#how-we-measure-routing">How we measure routing</a> explain the simulator and how it will be checked against real outcomes. Commands: <code>{sim.commands.standard}</code> and <code>{sim.commands['coding-only']}</code>.</p>
+  </div>
+</section>
+
+<section class="sec" id="calculator" aria-labelledby="calc-h">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="titles"><p class="eyebrow">Calculator</p><h2 id="calc-h">Scale the simulation to your team.</h2></div>
+      <p class="lead">Takes the simulator's results above and scales them to your number of tasks and your price per failed attempt. It doesn't model your traffic: if your work differs from the simulated population, so will your savings. Nothing you enter leaves the page.</p>
+    </div>
+    <div class="calc" id="calc" data-sim={JSON.stringify(calcData)} data-names={JSON.stringify(NAMES)}>
+      <form aria-labelledby="calc-h">
+        <fieldset>
+          <legend>Team</legend>
+          <div class="field"><label for="c-dev">Developers</label><input id="c-dev" name="developers" type="number" min="1" max="10000" step="1" value={month.developers} /></div>
+          <div class="field"><label for="c-tasks">Tasks per developer per day</label><input id="c-tasks" name="tasksPerDay" type="number" min="1" max="200" step="1" value={month.tasksPerDay} /></div>
+          <div class="field"><label for="c-days">Working days a month</label><input id="c-days" name="workdays" type="number" min="1" max="31" step="1" value={month.workdays} /></div>
+        </fieldset>
+        <fieldset>
+          <legend>Work and people</legend>
+          <div class="field"><span class="lbl" id="l-mix">The simulated population</span>
+            <div class="radio" role="radiogroup" aria-labelledby="l-mix">
+              <label><input type="radio" name="mix" value="coding-only" checked /> Coding only</label>
+              <label><input type="radio" name="mix" value="standard" /> Standard mix</label>
+            </div>
+          </div>
+          <div class="field"><label for="c-human">Price per failed attempt, $ <output for="c-human" id="o-human"></output></label><input id="c-human" name="human" type="range" min="0" max="100" step="1" value={HUMAN} /><small>A failed attempt costs someone time: noticing it, asking again, waiting, cleaning up. The simulator's default is ${HUMAN}: about 10 minutes at $90 an hour.</small></div>
+        </fieldset>
+      </form>
+      <div class="results" aria-live="polite">
+        <div class="res-cards" id="cards"><p class="note">The calculator needs JavaScript. The ten-developer month at ${HUMAN} a failed attempt: {fmt.usd0(devMonth('always-opus'))} on Opus, {fmt.usd0(devMonth('always-sonnet'))} on Sonnet, {fmt.usd0(devMonth('auto-expected-cost'))} with the default, in model spend.</p></div>
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Monthly spend by strategy, scrolls sideways"><table class="dt" id="per-strategy"><caption class="sr-only">Monthly spend by strategy</caption></table></div>
+        <details class="calc-method" open>
+          <summary>Method</summary>
+          <pre>tasks a month   = developers × tasks a day × working days
+model spend     = the run's model spend ÷ the run's tasks × tasks a month
+time lost       = the run's failed attempts ÷ the run's tasks × tasks a month × price
+finished tasks  = the run's share finished × tasks a month</pre>
+          <p>The same scaling gives the home page's {month.tasks.toLocaleString('en-US')}-task month. The price per failed attempt changes only the accounting; the router's own setting for it (<code>human_cost_usd</code>, $1 by default) is fixed in the run. Not counted: compression, batch, the response cache, GPUs, and the cost of running the gateway.</p>
+          <p class="src">Simulated on {simDate} from the main repository at <code>{simCommit}</code>, prices of {pricesDate}.</p>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+</Base>
+
+<script>
+  const root = document.getElementById('calc')!;
+  const form = root.querySelector('form')!;
+  const SIM = JSON.parse(root.dataset.sim!);
+  const NAMES = JSON.parse(root.dataset.names!);
+  const $ = (id: string) => document.getElementById(id)!;
+  const money = (v: number) => '$' + Math.round(v).toLocaleString('en-US');
+  const CARDS = ['always-opus', 'always-sonnet', 'auto-expected-cost'];
+  const SHORT: Record<string, string> = { 'always-opus': 'Claude Opus 5.5 for everything', 'always-sonnet': 'Claude Sonnet 5.5 for everything', 'auto-expected-cost': 'Merit Order, the default' };
+
+  function render() {
+    const f = new FormData(form);
+    const n = (k: string) => Math.max(0, Number(f.get(k)) || 0);
+    const tasks = Math.max(1, n('developers')) * Math.max(1, n('tasksPerDay')) * Math.max(1, n('workdays'));
+    const h = n('human');
+    $('o-human').textContent = '$' + h;
+    const sc = SIM[String(f.get('mix'))];
+    const rows = sc.rows.map(([k, t, cost, fin, fails]: [string, number, number, number, number]) => ({
+      k, models: (cost / t) * tasks, people: ((h * fails) / t) * tasks, finished: (fin / t) * tasks,
+    }));
+    const by = Object.fromEntries(rows.map((r: any) => [r.k, r]));
+    const son = by['always-sonnet'];
+    $('cards').innerHTML = CARDS.map((k) => {
+      const r = by[k];
+      const vs = k === 'always-sonnet' ? 'model spend' : `${r.models <= son.models ? Math.round((1 - r.models / son.models) * 100) + '% less' : Math.round((r.models / son.models - 1) * 100) + '% more'} than Sonnet`;
+      return `<div class="res-card${k === 'auto-expected-cost' ? ' mo' : ''}"><span class="k">${SHORT[k]}</span><span class="v">${money(r.models)}</span><span class="d">model spend, ${vs.replace('model spend', 'the baseline')}</span><span class="d">+ ${money(r.people)} time lost to failed attempts = ${money(r.models + r.people)} total</span></div>`;
+    }).join('');
+    $('per-strategy').innerHTML = `<caption class="sr-only">Monthly spend by strategy, ${tasks.toLocaleString('en-US')} tasks, at $${h} per failed attempt</caption><thead><tr><th>Strategy, ${tasks.toLocaleString('en-US')} tasks a month</th><th class="r">Finished</th><th class="r">Model spend</th><th class="r">Time lost to failed attempts</th><th class="r">Total, counting failed attempts</th></tr></thead><tbody>${
+      rows.map((r: any) => `<tr${r.k === 'auto-expected-cost' ? ' class="mo"' : ''}><td>${NAMES[r.k]}</td><td class="r">${Math.round(r.finished).toLocaleString('en-US')}</td><td class="r">${money(r.models)}</td><td class="r">${money(r.people)}</td><td class="r">${money(r.models + r.people)}</td></tr>`).join('')}</tbody>`;
+  }
+  form.addEventListener('submit', (e) => e.preventDefault());
+  form.addEventListener('input', render);
+  form.addEventListener('change', render);
+  render();
+</script>
+
+<script>
+  // Counting the cost of failed attempts: redraw the chart, note and table at the chosen price per failed attempt.
+  import { failSplit, failNote, niceTicks } from '../lib/sim.js';
+  const fc = document.getElementById('failed-attempts')!;
+  const FC = JSON.parse(fc.dataset.fc!);
+  const FN = JSON.parse(fc.dataset.names!);
+  const usd = (v: number) => '$' + v.toFixed(2);
+  const pct1 = (v: number) => (v * 100).toFixed(1) + '%';
+  const tip = fc.querySelector<HTMLElement>('.fc-tip')!;
+  let by: Record<string, any> = {};
+  const say = (k: string, r: any) => `${FN[k]}: ${usd(r.spend)} model spend plus ${usd(r.lost)} time lost to failed attempts, ${usd(r.total)} in total per finished task; ${pct1(r.finished)} of tasks finished.`;
+
+  function draw(h: number) {
+    by = Object.fromEntries(FC.rows.map(([k, tasks, cost, finished, failed_attempts]: [string, number, number, number, number]) => [k, failSplit({ tasks, cost, finished, failed_attempts }, h)]));
+    const ticks = niceTicks(Math.max(...Object.values(by).map((r: any) => r.total)));
+    const max = ticks[ticks.length - 1];
+    const p = (v: number) => `${((v / max) * 100).toFixed(2)}%`;
+    fc.querySelector<HTMLElement>('.fc-chart')!.style.setProperty('--fc-step', p(ticks[1] ?? max));
+    fc.querySelectorAll<HTMLElement>('.fc-row[data-k]').forEach((row) => {
+      const k = row.dataset.k!, r = by[k];
+      const bar = row.querySelector<HTMLElement>('.fc-bar')!;
+      bar.style.width = p(r.total);
+      bar.classList.toggle('solo', r.lost === 0);
+      row.querySelector<HTMLElement>('.fc-s')!.style.flex = `${r.spend} 1 0`;
+      row.querySelector<HTMLElement>('.fc-l')!.style.flex = `${r.lost} 1 0`;
+      const t = row.querySelector<HTMLElement>('.fc-t')!;
+      t.style.left = p(r.total);
+      t.textContent = usd(r.total);
+      row.querySelector('.sr-only')!.textContent = say(k, r);
+    });
+    fc.querySelector('.fc-axis')!.replaceChildren(...ticks.map((v) => {
+      const s = document.createElement('span'); s.style.left = p(v); s.textContent = '$' + (v % 1 ? v.toFixed(2) : v); return s;
+    }));
+    fc.querySelector('.fc-note')!.textContent = failNote(by, h).join(' ');
+    fc.querySelector('.fc-table caption')!.textContent = `Per finished task at $${h} per failed attempt, standard mix`;
+    fc.querySelector('.fc-table tbody')!.replaceChildren(...FC.rows.map(([k]: [string]) => {
+      const r = by[k], tr = document.createElement('tr');
+      if (k === 'auto-expected-cost') tr.className = 'mo';
+      for (const [v, cls] of [[FN[k], ''], [usd(r.spend), 'r'], [usd(r.lost), 'r'], [usd(r.total), 'r'], [pct1(r.finished), 'r']]) {
+        const td = document.createElement('td'); td.textContent = v; if (cls) td.className = cls; tr.append(td);
+      }
+      return tr;
+    }));
+  }
+  fc.querySelectorAll<HTMLInputElement>('input[name="fc-price"]').forEach((i) => i.addEventListener('change', () => { if (i.checked) draw(Number(i.value)); }));
+  draw(Number(fc.querySelector<HTMLInputElement>('input[name="fc-price"]:checked')?.value ?? 15));
+
+  // Hover: one tooltip per row with the split. The table and each row's hidden sentence carry the same numbers.
+  fc.querySelectorAll<HTMLElement>('.fc-row[data-k]').forEach((row) => {
+    row.addEventListener('pointermove', (e) => {
+      const k = row.dataset.k!, r = by[k];
+      const b = document.createElement('b'); b.textContent = FN[k];
+      tip.replaceChildren(b, ...[['Model spend', usd(r.spend)], ['Time lost to failed attempts', usd(r.lost)], ['Total', usd(r.total)], ['Tasks finished', pct1(r.finished)]].map(([a, v]) => {
+        const d = document.createElement('div'), x = document.createElement('span'), y = document.createElement('span');
+        x.textContent = a; y.textContent = v; d.append(x, y); return d;
+      }));
+      tip.hidden = false;
+      const box = fc.getBoundingClientRect();
+      tip.style.left = `${Math.max(0, Math.min(e.clientX - box.left + 14, box.width - tip.offsetWidth))}px`;
+      tip.style.top = `${e.clientY - box.top + 16}px`;
+    });
+    row.addEventListener('pointerleave', () => { tip.hidden = true; });
+  });
+</script>

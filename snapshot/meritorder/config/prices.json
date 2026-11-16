@@ -1,0 +1,1613 @@
+{
+  "source": "https://openrouter.ai/api/v1/models",
+  "updated": "2026-11-12T12:28:15+00:00",
+  "sources": {
+    "openrouter": {
+      "ok": true,
+      "fetched_at": "2026-11-12T12:28:15+00:00"
+    },
+    "litellm": {
+      "ok": true,
+      "fetched_at": "2026-11-12T12:28:15+00:00"
+    }
+  },
+  "disagreements": [],
+  "prices": {
+    "anthropic:claude-fable-5-2": {
+      "input": 8.0,
+      "output": 40.0,
+      "cache_read": 0.2,
+      "cache_write": 10.0,
+      "source": "litellm"
+    },
+    "anthropic:claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+        {
+          "above": 100000,
+          "input": 0.5,
+          "output": 2.5,
+          "cache_write": 0.625,
+          "cache_read": 0.05
+        }
+      ],
+      "source": "litellm"
+    },
+    "anthropic:claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "source": "litellm"
+    },
+    "anthropic:claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "litellm"
+    },
+    "azure-openai:gpt-6.1-terra": {
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.05,
+      "cache_write": 1.25,
+      "tiers": [
+        {
+          "above": 272000,
+          "cache_write": 2.5,
+          "cache_read": 0.1,
+          "input": 2.0,
+          "output": 7.5
+        }
+      ],
+      "source": "litellm"
+    },
+    "azure-openai:text-embedding-3-small": {
+      "input": 0.022,
+      "output": 0.0,
+      "source": "litellm"
+    },
+    "bedrock:anthropic.claude-fable-5-2": {
+      "input": 8.0,
+      "output": 40.0,
+      "cache_read": 0.2,
+      "cache_write": 10.0,
+      "source": "litellm"
+    },
+    "bedrock:anthropic.claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+        {
+          "above": 100000,
+          "input": 0.5,
+          "output": 2.5,
+          "cache_write": 0.625,
+          "cache_read": 0.05
+        }
+      ],
+      "source": "litellm"
+    },
+    "bedrock:anthropic.claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "source": "litellm"
+    },
+    "bedrock:anthropic.claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "litellm"
+    },
+    "foundry-claude:claude-fable-5-2": {
+      "input": 8.0,
+      "output": 40.0,
+      "cache_read": 0.2,
+      "cache_write": 10.0,
+      "source": "litellm"
+    },
+    "foundry-claude:claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+        {
+          "above": 100000,
+          "input": 0.5,
+          "output": 2.5,
+          "cache_write": 0.625,
+          "cache_read": 0.05
+        }
+      ],
+      "source": "litellm"
+    },
+    "foundry-claude:claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "source": "litellm"
+    },
+    "foundry-claude:claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "litellm"
+    },
+    "gemini:gemini-3.5-flash-lite": {
+      "input": 0.3,
+      "output": 2.5,
+      "cache_read": 0.03,
+      "source": "litellm"
+    },
+    "gemini:gemini-3.8-flash": {
+      "input": 0.75,
+      "output": 3.75,
+      "cache_read": 0.075,
+      "source": "litellm"
+    },
+    "gemini:gemini-4-argon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "gemini:gemini-4-carbon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "mistral:ministral-14b-2512": {
+      "input": 0.2,
+      "output": 0.2,
+      "cache_read": 0.02,
+      "source": "litellm"
+    },
+    "mistral:mistral-embed": {
+      "input": 0.1,
+      "output": 0.0,
+      "source": "litellm"
+    },
+    "mistral:mistral-large-4-0": {
+      "input": 0.7,
+      "output": 2.1,
+      "cache_read": 0.07,
+      "source": "litellm"
+    },
+    "mistral:mistral-small-2603": {
+      "input": 0.15,
+      "output": 0.6,
+      "cache_read": 0.015,
+      "source": "litellm"
+    },
+    "openai:gpt-6-astra": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_read": 1.0,
+      "cache_write": 12.5,
+      "tiers": [
+        {
+          "above": 272000,
+          "cache_write": 25.0,
+          "cache_read": 2.0,
+          "input": 20.0,
+          "output": 75.0
+        }
+      ],
+      "source": "litellm"
+    },
+    "openai:gpt-6-luna": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+        {
+          "above": 272000,
+          "cache_write": 0.25,
+          "cache_read": 0.02,
+          "input": 0.2,
+          "output": 0.75
+        }
+      ],
+      "source": "litellm"
+    },
+    "openai:gpt-6.1-sol": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "tiers": [
+        {
+          "above": 272000,
+          "cache_write": 5.0,
+          "cache_read": 0.2,
+          "input": 4.0,
+          "output": 15.0
+        }
+      ],
+      "source": "litellm"
+    },
+    "openai:gpt-6.1-terra": {
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.05,
+      "cache_write": 1.25,
+      "tiers": [
+        {
+          "above": 272000,
+          "cache_write": 2.5,
+          "cache_read": 0.1,
+          "input": 2.0,
+          "output": 7.5
+        }
+      ],
+      "source": "litellm"
+    },
+    "openai:text-embedding-3-large": {
+      "input": 0.13,
+      "output": 0.0,
+      "source": "litellm"
+    },
+    "openai:text-embedding-3-small": {
+      "input": 0.02,
+      "output": 0.0,
+      "source": "litellm"
+    },
+    "openrouter-free:google/gemma-4-31b-it:free": {
+      "input": 0.0,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter-free:nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "input": 0.0,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter-free:nvidia/nemotron-3.5-super-vl:free": {
+      "input": 0.0,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:amazon/titan-embed-text-v2": {
+      "input": 0.02,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:anthropic/claude-fable-5.2": {
+      "input": 8.0,
+      "output": 40.0,
+      "cache_read": 0.2,
+      "cache_write": 10.0,
+      "source": "openrouter"
+    },
+    "openrouter:anthropic/claude-haiku-5.5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "source": "openrouter"
+    },
+    "openrouter:anthropic/claude-opus-5.5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "source": "openrouter"
+    },
+    "openrouter:anthropic/claude-sonnet-5.5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "openrouter"
+    },
+    "openrouter:baai/bge-m3": {
+      "input": 0.01,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:cohere/embed-5-fast": {
+      "input": 0.08,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:deepseek/deepseek-v4-pro": {
+      "input": 0.95526,
+      "output": 1.91052,
+      "cache_read": 0.079605,
+      "source": "openrouter"
+    },
+    "openrouter:deepseek/deepseek-v4.1-flash": {
+      "input": 0.022,
+      "output": 0.4,
+      "cache_read": 0.004,
+      "source": "openrouter"
+    },
+    "openrouter:deepseek/deepseek-v4.1-flash-1017": {
+      "input": 0.15,
+      "output": 0.6,
+      "cache_read": 0.003,
+      "source": "openrouter"
+    },
+    "openrouter:google/gemini-3.5-flash-lite": {
+      "input": 0.3,
+      "output": 2.5,
+      "cache_read": 0.03,
+      "cache_write": 0.083333,
+      "source": "openrouter"
+    },
+    "openrouter:google/gemini-3.8-flash": {
+      "input": 0.825,
+      "output": 4.125,
+      "cache_read": 0.0825,
+      "cache_write": 0.041667,
+      "source": "openrouter"
+    },
+    "openrouter:google/gemini-4-argon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 0.1875,
+      "source": "openrouter"
+    },
+    "openrouter:google/gemini-4-carbon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 0.1875,
+      "source": "openrouter"
+    },
+    "openrouter:google/gemma-4-31b-it": {
+      "input": 0.2,
+      "output": 0.4,
+      "source": "openrouter"
+    },
+    "openrouter:meta-llama/llama-4-maverick": {
+      "input": 0.35,
+      "output": 1.0,
+      "cache_read": 0.17,
+      "source": "openrouter"
+    },
+    "openrouter:meta/muse-spark-1.3": {
+      "input": 1.25,
+      "output": 4.25,
+      "cache_read": 0.15,
+      "source": "openrouter"
+    },
+    "openrouter:meta/muse-spark-open": {
+      "input": 1.25,
+      "output": 4.25,
+      "cache_read": 0.15,
+      "source": "openrouter"
+    },
+    "openrouter:minimax/minimax-m3": {
+      "input": 0.3,
+      "output": 1.2,
+      "cache_read": 0.06,
+      "source": "openrouter"
+    },
+    "openrouter:minimax/minimax-m3.1-flash": {
+      "input": 0.15,
+      "output": 0.6,
+      "cache_read": 0.015,
+      "source": "openrouter"
+    },
+    "openrouter:mistralai/devstral-2512": {
+      "input": 0.4,
+      "output": 2.0,
+      "cache_read": 0.04,
+      "source": "openrouter"
+    },
+    "openrouter:mistralai/ministral-14b-2512": {
+      "input": 0.2,
+      "output": 0.2,
+      "cache_read": 0.02,
+      "source": "openrouter"
+    },
+    "openrouter:mistralai/mistral-embed-2312": {
+      "input": 0.1,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:mistralai/mistral-large-4-0": {
+      "input": 0.7,
+      "output": 2.1,
+      "cache_read": 0.07,
+      "source": "openrouter"
+    },
+    "openrouter:mistralai/mistral-small-2603": {
+      "input": 0.15,
+      "output": 0.6,
+      "cache_read": 0.015,
+      "source": "openrouter"
+    },
+    "openrouter:mongodb/voyage-4": {
+      "input": 0.06,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:mongodb/voyage-code-4": {
+      "input": 0.12,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:moonshotai/kimi-k3": {
+      "input": 0.192,
+      "output": 16.0,
+      "cache_read": 0.182,
+      "source": "openrouter"
+    },
+    "openrouter:moonshotai/kimi-k3.1-pro": {
+      "input": 0.2375,
+      "output": 8.4085,
+      "cache_read": 0.2,
+      "source": "openrouter"
+    },
+    "openrouter:nvidia/nemotron-3-ultra-550b-a55b": {
+      "input": 0.6,
+      "output": 2.4,
+      "cache_read": 0.12,
+      "source": "openrouter"
+    },
+    "openrouter:nvidia/nemotron-3.5-super-vl": {
+      "input": 0.15,
+      "output": 0.47,
+      "cache_read": 0.02,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-6-astra": {
+      "input": 10.0,
+      "output": 50.0,
+      "cache_read": 1.0,
+      "cache_write": 12.5,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-6-luna": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-6.1-sol": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-6.1-terra": {
+      "input": 1.0,
+      "output": 5.0,
+      "cache_read": 0.05,
+      "cache_write": 1.25,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-oss-120b": {
+      "input": 0.15,
+      "output": 0.6,
+      "cache_read": 0.075,
+      "source": "openrouter"
+    },
+    "openrouter:openai/gpt-oss-20b": {
+      "input": 0.03,
+      "output": 0.13,
+      "cache_read": 0.03,
+      "source": "openrouter"
+    },
+    "openrouter:openai/text-embedding-3-large": {
+      "input": 0.13,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:openai/text-embedding-3-small": {
+      "input": 0.02,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:qwen/qwen3-coder": {
+      "input": 0.3,
+      "output": 1.0,
+      "cache_read": 0.1,
+      "source": "openrouter"
+    },
+    "openrouter:qwen/qwen3-coder-30b-a3b-instruct": {
+      "input": 0.15,
+      "output": 0.6,
+      "source": "openrouter"
+    },
+    "openrouter:qwen/qwen3-coder-next": {
+      "input": 0.12,
+      "output": 0.8,
+      "cache_read": 0.07,
+      "source": "openrouter"
+    },
+    "openrouter:qwen/qwen3-embedding-8b": {
+      "input": 0.01,
+      "output": 0.0,
+      "source": "openrouter"
+    },
+    "openrouter:qwen/qwen3.8-flash": {
+      "input": 0.15,
+      "output": 0.47,
+      "cache_read": 0.016,
+      "source": "openrouter"
+    },
+    "openrouter:x-ai/grok-4.7": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "source": "openrouter"
+    },
+    "openrouter:xiaomi/mimo-v2.6-flash": {
+      "input": 0.14,
+      "output": 0.28,
+      "cache_read": 0.0028,
+      "source": "openrouter"
+    },
+    "openrouter:xiaomi/mimo-v2.6-pro": {
+      "input": 0.435,
+      "output": 0.87,
+      "cache_read": 0.0036,
+      "source": "openrouter"
+    },
+    "openrouter:z-ai/glm-5.3": {
+      "input": 0.0699,
+      "output": 1.4,
+      "cache_read": 0.0689,
+      "source": "openrouter"
+    },
+    "openrouter:z-ai/glm-5.3-flash": {
+      "input": 0.0399,
+      "output": 0.0784,
+      "cache_read": 0.03,
+      "source": "openrouter"
+    },
+    "vertex-gemini-native:gemini-3.5-flash-lite": {
+      "input": 0.3,
+      "output": 2.5,
+      "cache_read": 0.03,
+      "source": "litellm"
+    },
+    "vertex-gemini-native:gemini-3.8-flash": {
+      "input": 0.75,
+      "output": 3.75,
+      "cache_read": 0.075,
+      "source": "litellm"
+    },
+    "vertex-gemini-native:gemini-4-argon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "vertex-gemini-native:gemini-4-carbon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "vertex-gemini:google/gemini-3.5-flash-lite": {
+      "input": 0.3,
+      "output": 2.5,
+      "cache_read": 0.03,
+      "source": "litellm"
+    },
+    "vertex-gemini:google/gemini-3.8-flash": {
+      "input": 0.75,
+      "output": 3.75,
+      "cache_read": 0.075,
+      "source": "litellm"
+    },
+    "vertex-gemini:google/gemini-4-argon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "vertex-gemini:google/gemini-4-carbon": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "source": "litellm"
+    },
+    "vertex:claude-fable-5-2": {
+      "input": 8.0,
+      "output": 40.0,
+      "cache_read": 0.2,
+      "cache_write": 10.0,
+      "source": "litellm"
+    },
+    "vertex:claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cache_read": 0.01,
+      "cache_write": 0.125,
+      "tiers": [
+        {
+          "above": 100000,
+          "input": 0.5,
+          "output": 2.5,
+          "cache_write": 0.625,
+          "cache_read": 0.05
+        }
+      ],
+      "source": "litellm"
+    },
+    "vertex:claude-opus-5-5": {
+      "input": 4.0,
+      "output": 20.0,
+      "cache_read": 0.2,
+      "cache_write": 5.0,
+      "source": "litellm"
+    },
+    "vertex:claude-sonnet-5-5": {
+      "input": 2.0,
+      "output": 10.0,
+      "cache_read": 0.1,
+      "cache_write": 2.5,
+      "source": "litellm"
+    },
+    "xai:grok-4.7": {
+      "input": 2.0,
+      "output": 6.0,
+      "cache_read": 0.5,
+      "tiers": [
+        {
+          "above": 200000,
+          "cache_read": 1.0,
+          "input": 4.0,
+          "output": 12.0
+        }
+      ],
+      "source": "litellm"
+    }
+  },
+  "context": {
+    "bge-m3": 8194,
+    "claude-fable": 1000000,
+    "claude-haiku": 1000000,
+    "claude-opus": 1000000,
+    "claude-sonnet": 1000000,
+    "cohere-embed-5-fast": 128000,
+    "deepseek-v4-pro": 1048576,
+    "deepseek-v4.1-flash": 1048576,
+    "deepseek-v4.1-flash-1017": 1048576,
+    "devstral-2": 262144,
+    "gemini-argon": 1048576,
+    "gemini-carbon": 1048576,
+    "gemini-flash": 1048576,
+    "gemini-flash-lite": 1048576,
+    "gemma-4-31b": 262144,
+    "glm-5.3": 1048576,
+    "glm-5.3-flash": 1048576,
+    "gpt-astra": 922000,
+    "gpt-luna": 922000,
+    "gpt-oss-120b": 131072,
+    "gpt-oss-20b": 131072,
+    "gpt-sol": 922000,
+    "gpt-terra": 922000,
+    "grok": 500000,
+    "kimi-k3": 1048576,
+    "kimi-k3.1": 1048576,
+    "llama-4-maverick": 524288,
+    "mimo-v2.6-flash": 1050000,
+    "mimo-v2.6-pro": 1050000,
+    "minimax-m3": 1048576,
+    "minimax-m3.1-flash": 1048576,
+    "ministral-14b": 262144,
+    "mistral-embed": 8192,
+    "mistral-large-4": 1048576,
+    "mistral-small-4": 262144,
+    "muse-spark": 1048576,
+    "muse-spark-open": 1048576,
+    "nemotron-3-ultra": 262144,
+    "nemotron-3.5-super": 1048576,
+    "qwen3-coder": 262144,
+    "qwen3-coder-30b": 262144,
+    "qwen3-coder-next": 262144,
+    "qwen3-embedding-8b": 40960,
+    "qwen3.8-flash": 1000000,
+    "text-embedding-3-large": 8191,
+    "text-embedding-3-small": 8191,
+    "titan-embed-text-v2": 8192,
+    "voyage-4": 32000,
+    "voyage-code-4": 32000
+  },
+  "max_output": {
+    "bge-m3": 8194,
+    "claude-fable": 128000,
+    "claude-haiku": 128000,
+    "claude-opus": 128000,
+    "claude-sonnet": 128000,
+    "deepseek-v4-pro": 384000,
+    "deepseek-v4.1-flash": 943718,
+    "deepseek-v4.1-flash-1017": 393216,
+    "devstral-2": 209715,
+    "gemini-argon": 1048576,
+    "gemini-carbon": 1048576,
+    "gemini-flash": 65536,
+    "gemini-flash-lite": 65536,
+    "gemma-4-31b": 16384,
+    "glm-5.3": 943718,
+    "glm-5.3-flash": 131072,
+    "gpt-astra": 128000,
+    "gpt-luna": 128000,
+    "gpt-oss-120b": 65536,
+    "gpt-oss-20b": 117964,
+    "gpt-sol": 128000,
+    "gpt-terra": 128000,
+    "grok": 500000,
+    "kimi-k3": 943718,
+    "kimi-k3.1": 943718,
+    "llama-4-maverick": 32768,
+    "mimo-v2.6-flash": 131072,
+    "mimo-v2.6-pro": 131072,
+    "minimax-m3": 512000,
+    "minimax-m3.1-flash": 524288,
+    "ministral-14b": 262144,
+    "mistral-large-4": 1048576,
+    "mistral-small-4": 262144,
+    "muse-spark": 943718,
+    "muse-spark-open": 262144,
+    "nemotron-3-ultra": 182520,
+    "nemotron-3.5-super": 943718,
+    "qwen3-coder": 65536,
+    "qwen3-coder-30b": 235929,
+    "qwen3-coder-next": 235929,
+    "qwen3-embedding-8b": 32000,
+    "qwen3.8-flash": 131072
+  },
+  "reasoning": [
+    "claude-fable",
+    "claude-haiku",
+    "claude-opus",
+    "claude-sonnet",
+    "deepseek-v4-pro",
+    "deepseek-v4.1-flash",
+    "deepseek-v4.1-flash-1017",
+    "gemini-argon",
+    "gemini-carbon",
+    "gemini-flash",
+    "gemini-flash-lite",
+    "gemma-4-31b",
+    "glm-5.3",
+    "glm-5.3-flash",
+    "gpt-astra",
+    "gpt-luna",
+    "gpt-oss-120b",
+    "gpt-oss-20b",
+    "gpt-sol",
+    "gpt-terra",
+    "grok",
+    "kimi-k3",
+    "kimi-k3.1",
+    "mimo-v2.6-flash",
+    "mimo-v2.6-pro",
+    "minimax-m3",
+    "minimax-m3.1-flash",
+    "mistral-large-4",
+    "mistral-small-4",
+    "muse-spark",
+    "muse-spark-open",
+    "nemotron-3-ultra",
+    "nemotron-3.5-super",
+    "qwen3.8-flash"
+  ],
+  "quality": {
+    "updated": "2026-11-12T12:28:15+00:00",
+    "source": "epoch",
+    "scale": "best",
+    "status": {
+      "ok": true,
+      "fetched_at": "2026-11-12T12:28:15+00:00"
+    },
+    "attribution": "Epoch AI, Capabilities & benchmarking (epoch.ai/benchmarks), CC BY 4.0",
+    "reference": {
+      "coding": "FrontierSWE",
+      "general": "FrontierSWE"
+    },
+    "scores": {
+      "deepseek-v4.1-flash-1017": {
+        "coding": 2.0,
+        "general": 1.9
+      },
+      "deepseek-v4.1-flash": {
+        "coding": 2.4,
+        "general": 1.4
+      },
+      "deepseek-v4-pro": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "glm-5.3": {
+        "coding": 2.1,
+        "general": 1.4
+      },
+      "glm-5.3-flash": {
+        "coding": 1.3,
+        "general": 1.0
+      },
+      "minimax-m3": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "muse-spark": {
+        "coding": 1.8,
+        "general": 1.6
+      },
+      "muse-spark-open": {
+        "coding": 1.3,
+        "general": 1.2
+      },
+      "llama-4-maverick": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "kimi-k3.1": {
+        "coding": 2.5,
+        "general": 2.3
+      },
+      "kimi-k3": {
+        "coding": 2.1,
+        "general": 1.7
+      },
+      "qwen3-coder": {
+        "coding": 1.0
+      },
+      "mistral-large-4": {
+        "coding": 1.9,
+        "general": 1.0
+      },
+      "gemma-4-31b": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "nemotron-3-ultra": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "gpt-oss-120b": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "gpt-oss-20b": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "claude-fable": {
+        "coding": 5.0,
+        "general": 5.0
+      },
+      "claude-opus": {
+        "coding": 4.1,
+        "general": 4.0
+      },
+      "claude-sonnet": {
+        "coding": 3.9,
+        "general": 3.5
+      },
+      "claude-haiku": {
+        "coding": 2.9,
+        "general": 2.1
+      },
+      "gpt-astra": {
+        "coding": 4.1,
+        "general": 4.1
+      },
+      "gpt-sol": {
+        "coding": 3.2,
+        "general": 4.0
+      },
+      "gpt-terra": {
+        "coding": 4.2,
+        "general": 3.8
+      },
+      "gpt-luna": {
+        "coding": 2.3,
+        "general": 1.3
+      },
+      "gemini-carbon": {
+        "coding": 4.4,
+        "general": 4.3
+      },
+      "gemini-argon": {
+        "coding": 3.4,
+        "general": 3.5
+      },
+      "gemini-flash": {
+        "coding": 1.7,
+        "general": 1.7
+      },
+      "gemini-flash-lite": {
+        "coding": 1.0,
+        "general": 1.0
+      },
+      "grok": {
+        "coding": 2.5,
+        "general": 1.3
+      }
+    },
+    "measures": {
+      "deepseek-v4.1-flash-1017": {
+        "coding": {
+          "chance": 0.2861,
+          "ability": 159.41,
+          "eci": 159.41,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.2861,
+          "ability": 159.41,
+          "eci": 159.41,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "deepseek-v4.1-flash": {
+        "coding": {
+          "chance": 0.3374,
+          "ability": 161.0,
+          "eci": 156.7,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.4387,
+              "variant": "high",
+              "ability": 161.0
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2104,
+          "ability": 156.7,
+          "eci": 156.7,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "deepseek-v4-pro": {
+        "coding": {
+          "chance": 0.0507,
+          "ability": 146.04,
+          "eci": 150.17,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.1764,
+              "variant": "none",
+              "ability": 146.04
+            }
+          }
+        },
+        "general": {
+          "chance": 0.0906,
+          "ability": 150.17,
+          "eci": 150.17,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "glm-5.3": {
+        "coding": {
+          "chance": 0.291,
+          "ability": 159.57,
+          "eci": 157.1,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.3018,
+              "variant": "max",
+              "ability": 159.91
+            },
+            "FrontierCode": {
+              "score": 0.4014,
+              "variant": "max",
+              "ability": 159.23
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2205,
+          "ability": 157.1,
+          "eci": 157.1,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "glm-5.3-flash": {
+        "coding": {
+          "chance": 0.1766,
+          "ability": 155.26,
+          "eci": 153.82,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.1813,
+              "variant": "max",
+              "ability": 155.47
+            },
+            "FrontierCode": {
+              "score": 0.3183,
+              "variant": "max",
+              "ability": 155.05
+            }
+          }
+        },
+        "general": {
+          "chance": 0.1472,
+          "ability": 153.82,
+          "eci": 153.82,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "minimax-m3": {
+        "coding": {
+          "chance": 0.0353,
+          "ability": 143.53,
+          "eci": 147.74,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.147,
+              "variant": "",
+              "ability": 143.53
+            }
+          }
+        },
+        "general": {
+          "chance": 0.0646,
+          "ability": 147.74,
+          "eci": 147.74,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "muse-spark": {
+        "coding": {
+          "chance": 0.2581,
+          "ability": 158.47,
+          "eci": 158.24,
+          "basis": "results on FrontierSWE",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.258,
+              "variant": "max",
+              "ability": 158.47
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2515,
+          "ability": 158.24,
+          "eci": 158.24,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "muse-spark-open": {
+        "coding": {
+          "chance": 0.1801,
+          "ability": 155.42,
+          "eci": 155.42,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.1801,
+          "ability": 155.42,
+          "eci": 155.42,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "llama-4-maverick": {
+        "coding": {
+          "chance": 0.0065,
+          "ability": 132.08,
+          "eci": 132.08,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.0065,
+          "ability": 132.08,
+          "eci": 132.08,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "kimi-k3.1": {
+        "coding": {
+          "chance": 0.35,
+          "ability": 161.37,
+          "eci": 161.37,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.35,
+          "ability": 161.37,
+          "eci": 161.37,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "kimi-k3": {
+        "coding": {
+          "chance": 0.2987,
+          "ability": 159.81,
+          "eci": 158.58,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.2587,
+              "variant": "max",
+              "ability": 158.49
+            },
+            "FrontierCode": {
+              "score": 0.4417,
+              "variant": "unknown",
+              "ability": 161.14
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2612,
+          "ability": 158.58,
+          "eci": 158.58,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "qwen3-coder": {
+        "coding": {
+          "chance": 0.0352,
+          "ability": 143.5,
+          "eci": null,
+          "basis": "results on Terminal Bench, GSO-Bench (no index or newer results)",
+          "evidence": {
+            "Terminal Bench": {
+              "score": 0.2719,
+              "variant": "",
+              "ability": 143.41
+            },
+            "GSO-Bench": {
+              "score": 0.049,
+              "variant": "",
+              "ability": 143.59
+            }
+          }
+        }
+      },
+      "mistral-large-4": {
+        "coding": {
+          "chance": 0.2704,
+          "ability": 158.89,
+          "eci": 119.81,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.3943,
+              "variant": "high",
+              "ability": 158.89
+            }
+          }
+        },
+        "general": {
+          "chance": 0.001,
+          "ability": 119.81,
+          "eci": 119.81,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gemma-4-31b": {
+        "coding": {
+          "chance": 0.0393,
+          "ability": 144.27,
+          "eci": 144.27,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.0393,
+          "ability": 144.27,
+          "eci": 144.27,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "nemotron-3-ultra": {
+        "coding": {
+          "chance": 0.0303,
+          "ability": 142.49,
+          "eci": 146.95,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.1361,
+              "variant": "",
+              "ability": 142.49
+            }
+          }
+        },
+        "general": {
+          "chance": 0.0577,
+          "ability": 146.95,
+          "eci": 146.95,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-oss-120b": {
+        "coding": {
+          "chance": 0.0216,
+          "ability": 140.16,
+          "eci": 140.16,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.0216,
+          "ability": 140.16,
+          "eci": 140.16,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-oss-20b": {
+        "coding": {
+          "chance": 0.01,
+          "ability": 134.97,
+          "eci": 134.97,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.01,
+          "ability": 134.97,
+          "eci": 134.97,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "claude-fable": {
+        "coding": {
+          "chance": 0.6994,
+          "ability": 171.08,
+          "eci": 173.44,
+          "basis": "results on FrontierSWE",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.6994,
+              "variant": "max",
+              "ability": 171.08
+            }
+          }
+        },
+        "general": {
+          "chance": 0.7685,
+          "ability": 173.44,
+          "eci": 173.44,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "claude-opus": {
+        "coding": {
+          "chance": 0.5723,
+          "ability": 167.41,
+          "eci": 168.54,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.6233,
+              "variant": "max",
+              "ability": 168.82
+            },
+            "FrontierCode": {
+              "score": 0.5464,
+              "variant": "medium",
+              "ability": 166.0
+            }
+          }
+        },
+        "general": {
+          "chance": 0.6134,
+          "ability": 168.54,
+          "eci": 168.54,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "claude-sonnet": {
+        "coding": {
+          "chance": 0.5478,
+          "ability": 166.75,
+          "eci": 166.56,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.6189,
+              "variant": "max",
+              "ability": 168.69
+            },
+            "FrontierCode": {
+              "score": 0.5209,
+              "variant": "xhigh",
+              "ability": 164.81
+            }
+          }
+        },
+        "general": {
+          "chance": 0.5407,
+          "ability": 166.56,
+          "eci": 166.56,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "claude-haiku": {
+        "coding": {
+          "chance": 0.4072,
+          "ability": 162.99,
+          "eci": 160.43,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.4377,
+              "variant": "max",
+              "ability": 163.81
+            },
+            "FrontierCode": {
+              "score": 0.4636,
+              "variant": "max",
+              "ability": 162.16
+            }
+          }
+        },
+        "general": {
+          "chance": 0.3185,
+          "ability": 160.43,
+          "eci": 160.43,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-astra": {
+        "coding": {
+          "chance": 0.5771,
+          "ability": 167.54,
+          "eci": 169.0,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.6551,
+              "variant": "max",
+              "ability": 169.73
+            },
+            "FrontierCode": {
+              "score": 0.5326,
+              "variant": "max",
+              "ability": 165.35
+            }
+          }
+        },
+        "general": {
+          "chance": 0.6297,
+          "ability": 169.0,
+          "eci": 169.0,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-sol": {
+        "coding": {
+          "chance": 0.4427,
+          "ability": 163.95,
+          "eci": 168.48,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.5023,
+              "variant": "medium",
+              "ability": 163.95
+            }
+          }
+        },
+        "general": {
+          "chance": 0.6112,
+          "ability": 168.48,
+          "eci": 168.48,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-terra": {
+        "coding": {
+          "chance": 0.5819,
+          "ability": 167.67,
+          "eci": 167.67,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.5819,
+          "ability": 167.67,
+          "eci": 167.67,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gpt-luna": {
+        "coding": {
+          "chance": 0.3149,
+          "ability": 160.32,
+          "eci": 156.41,
+          "basis": "results on FrontierCode",
+          "evidence": {
+            "FrontierCode": {
+              "score": 0.4242,
+              "variant": "max",
+              "ability": 160.32
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2032,
+          "ability": 156.41,
+          "eci": 156.41,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gemini-carbon": {
+        "coding": {
+          "chance": 0.6119,
+          "ability": 168.5,
+          "eci": 169.76,
+          "basis": "results on FrontierSWE",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.612,
+              "variant": "high",
+              "ability": 168.5
+            }
+          }
+        },
+        "general": {
+          "chance": 0.656,
+          "ability": 169.76,
+          "eci": 169.76,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gemini-argon": {
+        "coding": {
+          "chance": 0.4728,
+          "ability": 164.75,
+          "eci": 166.48,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.5496,
+              "variant": "high",
+              "ability": 166.8
+            },
+            "FrontierCode": {
+              "score": 0.4755,
+              "variant": "medium",
+              "ability": 162.71
+            }
+          }
+        },
+        "general": {
+          "chance": 0.5377,
+          "ability": 166.48,
+          "eci": 166.48,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gemini-flash": {
+        "coding": {
+          "chance": 0.2427,
+          "ability": 157.93,
+          "eci": 158.79,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.1963,
+              "variant": "high",
+              "ability": 156.12
+            },
+            "FrontierCode": {
+              "score": 0.4119,
+              "variant": "medium",
+              "ability": 159.73
+            }
+          }
+        },
+        "general": {
+          "chance": 0.2674,
+          "ability": 158.79,
+          "eci": 158.79,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "gemini-flash-lite": {
+        "coding": {
+          "chance": 0.0478,
+          "ability": 145.63,
+          "eci": 145.63,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        },
+        "general": {
+          "chance": 0.0478,
+          "ability": 145.63,
+          "eci": 145.63,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      },
+      "grok": {
+        "coding": {
+          "chance": 0.3447,
+          "ability": 161.21,
+          "eci": 156.18,
+          "basis": "results on FrontierSWE, FrontierCode",
+          "evidence": {
+            "FrontierSWE": {
+              "score": 0.295,
+              "variant": "xhigh",
+              "ability": 159.7
+            },
+            "FrontierCode": {
+              "score": 0.4759,
+              "variant": "unknown",
+              "ability": 162.73
+            }
+          }
+        },
+        "general": {
+          "chance": 0.1976,
+          "ability": 156.18,
+          "eci": 156.18,
+          "basis": "Epoch Capabilities Index",
+          "evidence": {}
+        }
+      }
+    },
+    "missing": [
+      "devstral-2",
+      "mimo-v2.6-flash",
+      "mimo-v2.6-pro",
+      "minimax-m3.1-flash",
+      "ministral-14b",
+      "mistral-small-4",
+      "nemotron-3.5-super",
+      "qwen3-coder-30b",
+      "qwen3-coder-next",
+      "qwen3.8-flash"
+    ]
+  }
+}
