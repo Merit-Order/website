@@ -778,4 +778,4 @@ really full. Meanwhile the controller sees the demand and adds replicas (after
 | Gateways pick up GPU state and config | ≤ 5 s | fixed |
 | Budget alerts | 80%, 100% | `safeguards.alert_at` (org, GPU); fixed for teams and people |
 | Spend spike alert | an hour at 5× the person's hourly average over the past week, and at least $5 | fixed |
-| Where the console's "Source" link and `GET /about` point (the AGPL's offer of the source to people using the gateway) | `https://github.com/Merit-Order/meritorder` | `console.source_url` (`MERITORDER_SOURCE_URL` in the shipped config) |
+| Where the console's "Source" link and `GET /about` point (the AGPL's offer of the source to people using the gateway) | `https://github.com/therick/meritorder` | `console.source_url` (`MERITORDER_SOURCE_URL` in the shipped config) |

@@ -42,7 +42,7 @@ repo (`meritorder:dev`, `meritorder:gpu` and `meritorder:compressor`; `MERITORDE
 **No images are published yet.** The release workflow (`.github/workflows/release.yml`) runs only when a `v*` tag is
 pushed, and no tag exists yet. Until the first tag, build the images yourself (Compose does it for you; for
 Kubernetes, build and push them to your own registry). From then on, tag `v0.0.1` publishes
-`ghcr.io/merit-order/meritorder:0.0.1`, `:0.0.1-gpu` and `:0.0.1-compressor`, and moves `:latest`, `:latest-gpu` and
+`ghcr.io/therick/meritorder:0.0.1`, `:0.0.1-gpu` and `:0.0.1-compressor`, and moves `:latest`, `:latest-gpu` and
 `:latest-compressor` to them ([Supply-chain security](#supply-chain-security)). The chart's default image tag is its
 `appVersion`, `0.0.1`, so a default Helm install pulls what that tag publishes.
 
@@ -125,7 +125,7 @@ line is used only with its profile on (and, for the compressor and ClickHouse, t
 ## Quickstart
 
 ```bash
-git clone https://github.com/Merit-Order/meritorder && cd meritorder
+git clone https://github.com/therick/meritorder && cd meritorder
 cp .env.example .env          # set MERITORDER_DEV_KEY; provider keys are optional (mock backends without them)
 docker compose up -d          # gateway + worker + Postgres + Redis on :8080, UI at /ui/
 docker compose exec gateway meritorder keys create --user you@example.com --role admin
@@ -748,7 +748,7 @@ Compose reads it into every Merit Order container (not Postgres, Redis, ClickHou
 
 | Value | Default | Notes |
 |---|---|---|
-| `image.repository`, `image.tag` | `ghcr.io/merit-order/meritorder`; `""` (the chart's `appVersion`) | The default tag, `0.0.1`, is what release tag `v0.0.1` publishes; a chart from a later release defaults to that release's images. Until the tag is pushed, build and push the images yourself and point these at them |
+| `image.repository`, `image.tag` | `ghcr.io/therick/meritorder`; `""` (the chart's `appVersion`) | The default tag, `0.0.1`, is what release tag `v0.0.1` publishes; a chart from a later release defaults to that release's images. Until the tag is pushed, build and push the images yourself and point these at them |
 | `env` | `{}` | Non-secret environment for every component. `MERITORDER_GATEWAY_URL` (how the worker reaches the gateway to run evals started on the console) defaults to the chart's gateway Service; set it here to override |
 | `externalSecret` | off | Sync the env Secret from a cloud secret store via External Secrets Operator ([Secrets](#secrets)) |
 | `existingSecret` | `""` | A Secret you manage with provider keys, `MERITORDER_DATABASE_URL`, `MERITORDER_REDIS_URL` |
@@ -845,7 +845,7 @@ CloudFormation stack (`meritorder-demo-site`, us-east-1) with everything it need
   AAAA alias records** to the distribution.
 - **A deploy role for GitHub Actions**, through GitHub's OIDC provider (the stack creates it; pass
   `CreateGitHubOidcProvider=false` if the account already has one). It trusts only pushes to `main` of the
-  repositories in the stack's `GitHubSubjects` parameter (`Merit-Order/meritorder`). It may only list, write and
+  repositories in the stack's `GitHubSubjects` parameter (`therick/meritorder`). It may only list, write and
   delete objects in the bucket and invalidate the distribution.
 
 To create or change the stack, see [deploy/aws/README.md](../deploy/aws/README.md).
@@ -907,6 +907,6 @@ These are the rules the repo follows:
 | **Dependencies** | A small set: FastAPI, uvicorn, httpx, pydantic, PyYAML, redis, asyncpg, PyJWT + cryptography, botocore; optional extras for google-auth, azure-identity, OpenTelemetry, pyzmq + msgpack (`kv-events`, for the controller to follow vLLM's KV-cache events; in the image), and pyarrow (`parquet`, for `meritorder export --format parquet` and for reading Parquet bill exports (`aws_cur`, `azure_export`); not in the image, which reads gzipped CSV exports), and llmlingua (`compressor`, which brings torch and transformers; only in the `-compressor` image). ClickHouse, when set up, is reached over its HTTP interface with httpx: no driver. SkyPilot (~150 packages) lives only in the controller's `-gpu` image, in its own environment (the compose stack also builds it into the local image, for GPU prices). The Kubernetes provisioner uses httpx, not a Kubernetes client library. Adding a dependency needs a written justification in the PR. |
 | **Lockfile** | `uv.lock` with hashes. `exclude-newer` in `pyproject.toml` is a fixed cutoff date, set a few days back and bumped deliberately, so a new release isn't used until it has been out that long: the window in which most malicious releases are caught and pulled. |
 | **Updates** | Renovate waits 7 days before proposing a new version; `pip-audit` and `npm audit` in CI. The UI's npm dependencies are pinned exactly and install scripts are disabled. CI's own tools are pinned too: `pip-audit` to a version (`uvx pip-audit==2.10.1`), and the kubeconform image to its digest. |
-| **Our releases** | `.github/workflows/release.yml` runs on a pushed `v*` tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to `ghcr.io/merit-order/meritorder`, tagged with the version without the `v`: `<version>` (the gateway, worker and migrate image), `<version>-gpu` (adds SkyPilot 0.14.2) and `<version>-compressor` (adds llmlingua and torch, no SkyPilot). Each also moves its own `latest`: `latest`, `latest-gpu` and `latest-compressor` (the variants' `flavor` sets `onlatest=true`, so the suffix applies to `latest` too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (`provenance: mode=max`) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from `charts/meritorder` in the repo. |
+| **Our releases** | `.github/workflows/release.yml` runs on a pushed `v*` tag. It builds three images for linux/amd64 and linux/arm64 with Docker Buildx and pushes them to `ghcr.io/therick/meritorder`, tagged with the version without the `v`: `<version>` (the gateway, worker and migrate image), `<version>-gpu` (adds SkyPilot 0.14.2) and `<version>-compressor` (adds llmlingua and torch, no SkyPilot). Each also moves its own `latest`: `latest`, `latest-gpu` and `latest-compressor` (the variants' `flavor` sets `onlatest=true`, so the suffix applies to `latest` too and a variant never overwrites the main image's). Each push carries an SBOM and build provenance (`provenance: mode=max`) as attestations, and each image digest is signed with cosign, keyless, through GitHub's OIDC token (Sigstore). Every action is pinned to a commit hash. No tag exists yet, so nothing is published. The workflow doesn't publish the Helm chart or a PyPI package: install the chart from `charts/meritorder` in the repo. |
 | **Images** | Slim base image (`python:3.14-slim`; the package itself supports Python 3.12 and newer), non-root user (uid 10001). The Helm chart runs it with a read-only root filesystem and all capabilities dropped. |
 | **Reporting issues** | `SECURITY.md`: report privately through GitHub's private vulnerability reporting. |
