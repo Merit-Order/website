@@ -18,8 +18,8 @@ export default defineConfig({
       logo: { src: './src/assets/mark.svg', alt: '' },
       lastUpdated: false,
       pagination: true,
-      editLink: { baseUrl: 'https://github.com/Merit-Order/meritorder/blob/main/' },
-      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/Merit-Order/meritorder' }],
+      editLink: { baseUrl: 'https://github.com/therick/meritorder/blob/main/' },
+      social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/therick/meritorder' }],
       sidebar,
       customCss: ['./src/styles/tokens.css', './src/styles/starlight.css'],
       components: {

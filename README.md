@@ -1,6 +1,6 @@
 # Merit Order website
 
-The website for [Merit Order](https://github.com/Merit-Order/meritorder), a self-hosted LLM gateway, served at
+The website for [Merit Order](https://github.com/therick/meritorder), a self-hosted LLM gateway, served at
 **https://meritorder.dev**. The static console demo at **https://dev.meritorder.dev** is built separately.
 
 Astro, with Starlight for the docs. No analytics, no trackers, no cookies; fonts (Geist and Geist Mono, SIL OFL 1.1)
@@ -22,7 +22,7 @@ checkout of the main repo; CI does the same before building on main whenever it 
   batch, GPUs, budgets) are list-price arithmetic on the price list, and say so.
 - `scripts/sync-docs.mjs` runs before every build and turns `snapshot/meritorder/` (or `MERITORDER_REPO`, a path or a
   git URL, with `MERITORDER_REF` for a branch or tag) into pages, in the reading order of `docs/README.md`. Links
-  between those files are rewritten to site routes; links to anything else go to GitHub (`Merit-Order/meritorder`). An
+  between those files are rewritten to site routes; links to anything else go to GitHub (`therick/meritorder`). An
   anchor that names no heading, where exactly one heading starts with it, is relinked with a warning: fix the source.
   Mermaid diagrams are rendered once, at build time, to inline SVG (Playwright's Chromium), coloured with CSS variables.
   `config/` is exported to `public/data/pricing.json`.
@@ -59,13 +59,13 @@ repo) also refreshes from the main repo when it can read it, then uploads to S3 
 CloudFront. The main repo triggers it with:
 
 ```bash
-gh api repos/Merit-Order/website/dispatches -f event_type=docs-updated
+gh api repos/therick/meritorder-website/dispatches -f event_type=docs-updated
 ```
 
 That call needs a token with write access to this repo's contents (a fine-grained token with Contents: read and
-write on `Merit-Order/website`), in the main repo's workflow.
+write on `therick/meritorder-website`), in the main repo's workflow.
 
-Refreshing needs to read the main repo. Once `Merit-Order/meritorder` is public it just works. While it is private,
+Refreshing needs to read the main repo. Once `therick/meritorder` is public it just works. While it is private,
 add a read-only token as the `MERITORDER_REPO_TOKEN` secret (a fine-grained token with Contents: read on the main repo);
 without it, main builds use the committed snapshot and say so. Delete the secret once the repo is public.
 

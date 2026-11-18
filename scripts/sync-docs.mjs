@@ -20,7 +20,7 @@ import YAML from 'yaml';
 import GithubSlugger from 'github-slugger';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const GITHUB = 'https://github.com/Merit-Order/meritorder';
+const GITHUB = 'https://github.com/therick/meritorder';
 const BLOB = `${GITHUB}/blob/main/`;
 const TREE = `${GITHUB}/tree/main/`;
 const CONTENT = path.join(ROOT, 'src/content/docs');
@@ -42,7 +42,7 @@ function resolveRepo() {
   const dir = path.resolve(ROOT, spec);
   if (!fs.existsSync(path.join(dir, 'docs/README.md'))) {
     console.error(`sync-docs: no Merit Order checkout at ${dir}.\n` +
-      'Set MERITORDER_REPO to a checkout of Merit-Order/meritorder (a path or a git URL), or run npm run refresh.');
+      'Set MERITORDER_REPO to a checkout of therick/meritorder (a path or a git URL), or run npm run refresh.');
     process.exit(1);
   }
   return dir;
@@ -230,7 +230,7 @@ async function convert(file, { title, sidebarLabel, body: givenBody } = {}) {
   pageTitle = pageTitle.replace(/^\d+\s*[—–-]\s*/, '').replace(/\s*&\s*/g, ' and ');
   if (h1 && !givenBody) md = md.replace(h1[0], '').replace(/^\s+/, '');
   md = rewriteLinks(md, file);
-  // The repository is moving to Merit-Order/meritorder: links and clone commands point there. A quoted setting's
+  // The repository is moving to therick/meritorder: links and clone commands point there. A quoted setting's
   // value in backticks (what the code ships today) is left as it is.
   md = md.replace(/(?<!`)https:\/\/github\.com\/therick\/meritorder/g, GITHUB);
 
