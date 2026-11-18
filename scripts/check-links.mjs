@@ -56,7 +56,7 @@ if (external) {
       try {
         let r = await fetch(u, { method: 'HEAD', redirect: 'follow', signal: AbortSignal.timeout(15000) });
         if (r.status === 405 || r.status === 403) r = await fetch(u, { redirect: 'follow', signal: AbortSignal.timeout(15000) });
-        if (r.status >= 400) (u.includes('github.com/Merit-Order/meritorder') ? privateRepo : extBroken).push(`${r.status} ${u} (from ${ext.get(u)[0]})`);
+        if (r.status >= 400) (u.includes('github.com/therick/meritorder') ? privateRepo : extBroken).push(`${r.status} ${u} (from ${ext.get(u)[0]})`);
       } catch (e) { (u.includes('dev.meritorder.dev') ? privateRepo : extBroken).push(`ERR ${u}: ${e.cause?.code || e.message} (from ${ext.get(u)[0]})`); }
     }
   }));

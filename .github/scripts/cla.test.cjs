@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {run, sign, missingSigners, commentBody, PHRASE, MARKER} = require('./cla.cjs');
 
-const repo = {owner: 'Merit-Order', repo: 'meritorder'};
+const repo = {owner: 'therick', repo: 'meritorder'};
 const alice = {login: 'alice', id: 11};
 const bob = {login: 'bob', id: 12};
 const therick = {login: 'therick', id: 319326};

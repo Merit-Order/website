@@ -15,7 +15,7 @@ takes certificates from there). Use that account's profile and nothing else.
 P="--profile meritorder-admin --region us-east-1"
 aws sts get-caller-identity $P                                         # the Merit Order account
 aws route53 list-hosted-zones-by-name --dns-name meritorder.dev $P     # the zone: Z03013552QM54WTIRZBSF
-gh api repos/Merit-Order/website/actions/oidc/customization/sub       # the OIDC subject form (see GitHubSubjects)
+gh api repos/therick/meritorder-website/actions/oidc/customization/sub       # the OIDC subject form (see GitHubSubjects)
 
 aws cloudformation deploy $P --stack-name meritorder-website --template-file deploy/aws/website.yaml \
   --capabilities CAPABILITY_NAMED_IAM --parameter-overrides HostedZoneId=Z03013552QM54WTIRZBSF \
@@ -28,7 +28,7 @@ The first create took about 5 minutes. Parameters:
 |---|---|---|
 | `DomainName` | `meritorder.dev` | The apex. `www.` in front of it redirects there. |
 | `HostedZoneId` | (required) | The Route 53 zone for the name. |
-| `GitHubSubjects` | `repo:Merit-Order@355502678/website@1459849084:ref:refs/heads/main,repo:Merit-Order/website:ref:refs/heads/main` | Who the deploy role trusts. The repo uses GitHub's immutable subjects, so it sends the first form; the plain form is there in case that is turned off. |
+| `GitHubSubjects` | `repo:therick@319326/meritorder-website@1459849084:ref:refs/heads/main,repo:therick/meritorder-website:ref:refs/heads/main` | Who the deploy role trusts. The repo uses GitHub's immutable subjects, so it sends the first form; the plain form is there in case that is turned off. |
 | `GitHubOidcProviderArn` | (empty: the account's `token.actions.githubusercontent.com` provider) | The stack never creates an OIDC provider. The account's one belongs to the `meritorder-demo-site` stack, which created it: don't delete that stack without moving the provider first. |
 
 Outputs: `BucketName` (`meritorder-website-146879032513`), `DistributionId` (`E2OT5K7PVMFDFI`),
@@ -53,7 +53,7 @@ Outputs: `BucketName` (`meritorder-website-146879032513`), `DistributionId` (`E2
 ## The deploy role
 
 - **Trust:** `sts:AssumeRoleWithWebIdentity` from the account's GitHub OIDC provider, when the audience is
-  `sts.amazonaws.com` and the subject is one of `GitHubSubjects`: a workflow on `main` of `Merit-Order/website`.
+  `sts.amazonaws.com` and the subject is one of `GitHubSubjects`: a workflow on `main` of `therick/meritorder-website`.
   Branches, tags, pull requests, other repos and jobs that name an environment get other subjects and are refused.
 - **Permissions:** `s3:ListBucket` on the bucket, `s3:PutObject` and `s3:DeleteObject` on its objects, and
   `cloudfront:CreateInvalidation` on the distribution. Nothing else.
@@ -61,9 +61,9 @@ Outputs: `BucketName` (`meritorder-website-146879032513`), `DistributionId` (`E2
 ## Repository variables
 
 ```bash
-gh variable set SITE_DEPLOY_ROLE_ARN --repo Merit-Order/website --body arn:aws:iam::146879032513:role/meritorder-website-deploy
-gh variable set SITE_BUCKET          --repo Merit-Order/website --body meritorder-website-146879032513
-gh variable set SITE_DISTRIBUTION_ID --repo Merit-Order/website --body E2OT5K7PVMFDFI
+gh variable set SITE_DEPLOY_ROLE_ARN --repo therick/meritorder-website --body arn:aws:iam::146879032513:role/meritorder-website-deploy
+gh variable set SITE_BUCKET          --repo therick/meritorder-website --body meritorder-website-146879032513
+gh variable set SITE_DISTRIBUTION_ID --repo therick/meritorder-website --body E2OT5K7PVMFDFI
 ```
 
 ## Deploying by hand

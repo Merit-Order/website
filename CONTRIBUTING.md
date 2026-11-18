@@ -1,7 +1,7 @@
 # Contributing to the Merit Order website
 
 Thanks for helping. [README.md](README.md) covers setup, the build and how the site is deployed. The docs, prices and
-savings numbers come from the main repo ([Merit-Order/meritorder](https://github.com/Merit-Order/meritorder)), so
+savings numbers come from the main repo ([therick/meritorder](https://github.com/therick/meritorder)), so
 changes to those belong there; this repo holds the site around them.
 
 ## Pull requests
@@ -12,7 +12,7 @@ changes to those belong there; this repo holds the site around them.
 - For a visual change, include before and after screenshots (`npm run shots` takes them in light and dark, at desktop
   and phone widths).
 - Report security problems privately, as the main repo's
-  [SECURITY.md](https://github.com/Merit-Order/meritorder/blob/main/SECURITY.md) describes, not in a pull request.
+  [SECURITY.md](https://github.com/therick/meritorder/blob/main/SECURITY.md) describes, not in a pull request.
 
 ## Contributor License Agreement
 

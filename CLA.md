@@ -38,9 +38,8 @@ grant in your Contributions. It covers every Contribution you Submit to the Proj
 - **"You"** (or "your") means the person who signs this agreement by posting the comment above on a pull request,
   identified by their GitHub account.
 - **"Espeto LLC"** means Espeto LLC, the maintainer of Merit Order, and its successors and assigns.
-- **"Project"** means Merit Order: the software, documentation and website in the repositories of the Merit-Order
-  organization on GitHub (such as Merit-Order/meritorder and Merit-Order/website), and any other repository where
-  Espeto LLC maintains Merit Order.
+- **"Project"** means Merit Order: the software, documentation and website in the therick/meritorder and
+  therick/meritorder-website repositories on GitHub, and any other repository where Espeto LLC maintains Merit Order.
 - **"Contribution"** means any work of authorship, including changes and additions to existing work, that you
   Submit to the Project.
 - **"Submit"** means to send to the Project or Espeto LLC in any form, electronic, verbal or written, including pull

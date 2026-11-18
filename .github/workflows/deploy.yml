@@ -1,12 +1,12 @@
 # Build the site, check its links, and on main upload it to S3 behind CloudFront (deploy/aws/website.yaml) for
 # https://meritorder.dev. Pull requests build and check only.
 #
-# The docs and the routing simulator's results come from the main repo (Merit-Order/meritorder). A copy is committed in
+# The docs and the routing simulator's results come from the main repo (therick/meritorder). A copy is committed in
 # snapshot/, so every build works without access to it. On main (push, the daily run, a run by hand, or a
 # docs-updated dispatch from the main repo) the build first refreshes snapshot/ from the main repo when it can read it:
 # once it is public, or with a read-only token in the MERITORDER_REPO_TOKEN secret while it is private. The main repo
 # triggers a rebuild with:
-#   gh api repos/Merit-Order/website/dispatches -f event_type=docs-updated
+#   gh api repos/therick/meritorder-website/dispatches -f event_type=docs-updated
 name: Build and deploy
 
 on:
@@ -40,7 +40,7 @@ jobs:
           TOKEN: ${{ secrets.MERITORDER_REPO_TOKEN }}
         run: |
           export GIT_TERMINAL_PROMPT=0
-          for r in Merit-Order/meritorder therick/meritorder; do
+          for r in therick/meritorder; do
             url="https://github.com/$r"
             if [ -n "$TOKEN" ]; then url="https://x-access-token:${TOKEN}@github.com/$r"; fi
             if git ls-remote "$url" HEAD >/dev/null 2>&1; then
