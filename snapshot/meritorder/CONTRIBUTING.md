@@ -1,6 +1,7 @@
 # Contributing to Merit Order
 
-Thanks for helping. This page covers setup, the checks CI runs, what a pull request needs, and the sign-off.
+Thanks for helping. This page covers setup, the checks CI runs, what a pull request needs, and the Contributor License
+Agreement.
 
 Read [README.md](README.md) and [docs/00-how-it-all-works.md](docs/00-how-it-all-works.md) first, then the doc for
 the area you're changing. [docs/09-decisions.md](docs/09-decisions.md) explains past choices; if your change
@@ -9,6 +10,8 @@ reverses one, say so in the pull request.
 ## Setup
 
 You need Python 3.12 or newer with [uv](https://docs.astral.sh/uv/), and Node.js 26 for the console (`ui/`).
+`.python-version` asks uv for 3.14, which the images and CI's `python` job use; CI's `python-min` job runs the tests on
+3.12 too, so code must stay 3.12-compatible (no syntax or standard-library APIs newer than 3.12).
 
 ```bash
 git clone https://github.com/Merit-Order/meritorder && cd meritorder
@@ -69,25 +72,29 @@ uv run --with markdown python scripts/build_docs_html.py
 - Leave `CHANGELOG.md` to the maintainers; suggest an entry in the pull request instead.
 - Report security problems privately, as [SECURITY.md](SECURITY.md) describes, not in a pull request or issue.
 
-## Sign-off (DCO)
+## Contributor License Agreement
 
-Every commit must be signed off under the [Developer Certificate of Origin](https://developercertificate.org/):
-by adding the line, you certify that you wrote the change or have the right to submit it under the project's
-license. Sign off with `-s`:
+Before your first pull request can be merged, you sign the [Contributor License Agreement](CLA.md) (CLA), once. You
+keep your copyright; the agreement grants Espeto LLC, which maintains Merit Order, a license to your contributions,
+including the right to offer them under other licenses as well as the AGPL. [CLA.md](CLA.md) explains why, in plain
+words at the top.
 
-```bash
-git commit -s -m "Explain what changed"
+To sign, open your pull request: the `CLA` check comments and asks you to. Reply on the pull request with exactly:
+
+```
+I have read the CLA Document and I hereby sign the CLA
 ```
 
-This adds `Signed-off-by: Your Name <you@example.com>` to the message, using your git `user.name` and
-`user.email`. To sign off commits you've already made on a branch: `git rebase --signoff origin/main`.
+The check records your GitHub account and passes. Your signature covers your later pull requests too. If the commits
+aren't linked to your GitHub account, add the commit email address to your account and comment `recheck`. If you're
+contributing for your employer, ask the maintainer about a Corporate CLA first (CLA.md says how).
 
-The project may later ask contributors to sign a Contributor License Agreement (CLA) as well.
+Signing off commits (`git commit -s`) is welcome but not required.
 
 ## License
 
-Merit Order is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). By
-contributing, you agree that your contributions are licensed under the same terms.
+Merit Order is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only). Your
+contributions are released under it as part of Merit Order, and under the terms of the [CLA](CLA.md).
 
 ## Conduct
 

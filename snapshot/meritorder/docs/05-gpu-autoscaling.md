@@ -671,8 +671,9 @@ gcp:
 Don't set `NO_UPLOAD` or `SERVICE_ACCOUNT` for Azure, Lambda, RunPod, Nebius, Vast, Fluidstack, Paperspace,
 DigitalOcean, Mithril or Seeweb if you launch there: their machines need the key to delete themselves.
 
-**Image size.** All the extras above make SkyPilot's environment in the `-gpu` image about 2.0 GB, up from about
-0.8 GB with only `aws,gcp,kubernetes,lambda` (installed for Linux x86-64 and Python 3.12, measured in November 2026).
+**Image size.** All the extras above make SkyPilot's environment in the `-gpu` image about 2 GB, up from about
+0.8 GB with only `aws,gcp,kubernetes,lambda` (measured in November 2026: 2.0 and 0.8 GB for Linux x86-64 and Python
+3.12, 2.2 and 0.8 GB for Linux arm64 and Python 3.14).
 Azure's CLI and SDKs are about 1 GB of it. `--build-arg SKYPILOT_EXTRAS=aws,gcp,kubernetes,lambda` (or any list)
 builds a smaller one. OCI's SDK would add about 0.5 GB for a cloud Merit Order can't use, so it isn't in the default.
 

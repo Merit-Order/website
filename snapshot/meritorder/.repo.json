@@ -1,8 +1,9 @@
 {
- "commit": "bf211e340725d3905ff5295b8d6e66e5599f8995",
+ "commit": "4d4ddf6c74c835966bfd2a88554bd58d345abe68",
  "dirs": [
   ".github",
   ".github/ISSUE_TEMPLATE",
+  ".github/scripts",
   ".github/workflows",
   "charts",
   "charts/meritorder",

@@ -65,7 +65,7 @@ is in [docs/00-how-it-all-works.md](docs/00-how-it-all-works.md).
 
 ## Quickstart (no keys needed)
 
-Needs Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Needs Python 3.12 or newer (the images and CI use 3.14) and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync

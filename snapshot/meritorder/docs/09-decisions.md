@@ -58,7 +58,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 52 | Judged labels for the learned router: sampled in flight, replayed in the background, metered as the team's own | Accepted |
 | 53 | Claude's 1-hour cache from a session's second turn, priced at its own write price | Accepted; its first-turn estimate revisited by 60 |
 | 54 | The Responses API over WebSocket: chained on the connection from memory, HTTP upstream; compaction written by the gateway | Accepted |
-| 55 | AGPL-3.0-only license: the reasoning | Accepted |
+| 55 | AGPL-3.0-only license: the reasoning | Accepted; contributions under a CLA since 68 |
 | 56 | SkyPilot as plain clusters, one per replica, each behind a keyed gate with a dead-man lease; no SkyServe | Accepted |
 | 57 | Codex CLI's tools on every backend: custom tools as one-string functions, hosted tools left out where there's no equivalent | Accepted |
 | 58 | Quality scores on a fixed bar: a 5 is a fixed chance on the reference, not the best model you have | Accepted |
@@ -71,6 +71,7 @@ What we decided, why, and what would make us revisit it. Newest decisions go at 
 | 65 | A person's record lowers a key's role, never raises it; a saved configuration reads only allowed secrets | Accepted |
 | 66 | An unknown price is refused, not served free; spend counters checked against the ledger, Redis without persistence | Accepted |
 | 67 | A failure costs what the request puts at stake: the person's cost scaled by level and size; the tie band and move margin on money | Accepted; amends 62 |
+| 68 | Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow | Accepted; replaces the DCO in 55 |
 
 **Still open:** an embedding feature source for the learned router (decision 44). Judged labels are built (decision 52),
 opt-in per team, and tested only against mocks.
@@ -1361,18 +1362,19 @@ the source (`console.source_url`), so an operator running a changed version can 
 The console's bundled packages keep their own (mostly MIT) licenses, and the build writes their notices beside it.
 
 The copyright holders can still offer Merit Order under other licenses as well, for example a commercial
-one to a company that can't take the AGPL. That only covers code the holder owns. Contributions come in under the
-Developer Certificate of Origin (CONTRIBUTING.md), which licenses them under the AGPL and nothing else; offering
-outside contributions under other terms too would need a Contributor License Agreement from their authors, signed
-before (or for) those contributions. There's none today.
+one to a company that can't take the AGPL. That only covers code the holder owns, so outside contributions come in
+under a Contributor License Agreement (`CLA.md`, decision 68) that grants Espeto LLC the right to license them under
+other terms too. Until decision 68 they came in under the Developer Certificate of Origin, which licenses them under
+the AGPL and nothing else.
 
 **Not chosen:** a permissive license (MIT, BSD and similar): a company could run a changed gateway as a
 service and keep the changes. AGPL-3.0-or-later: it hands the choice of future terms to someone else. The Server Side
 Public License or the Business Source License: not open source by the OSI's definition, and they restrict use rather
-than ask for changes back. A CLA from the start: a barrier to the first contributors for a choice nobody has made yet.
+than ask for changes back. A CLA from the start: a barrier to the first contributors for a choice nobody had made
+yet (decision 68 made it).
 
-**Revisit if:** companies that would contribute can't use AGPL software at all (then dual licensing, which needs a CLA
-for outside code), or a later AGPL version fixes something that matters here.
+**Revisit if:** a later AGPL version fixes something that matters here. (Dual licensing, the other reason given here,
+was prepared for by decision 68.)
 
 ## 56. SkyPilot as plain clusters, one per replica, each behind a keyed gate with a dead-man lease; no SkyServe
 
@@ -1970,3 +1972,45 @@ is the rules' levels, not the kind of work.
 then the level factor may move towards a half), Reports → Learned router shows failed analyses or general level-3 work
 costing more than the models they'd have needed, the rules learn to tell analysis from writing (then decision 62's gain
 there comes back without chat's cost), or a measured time to notice and redo a failure per level replaces the third.
+
+## 68. Contributions under a CLA: a license grant to Espeto LLC, not an assignment; signed on the pull request through an in-repo workflow
+
+**Why:** Decision 55 keeps the option of offering Merit Order under other licenses as well as the AGPL, for example a
+commercial license for a company that can't use AGPL software. Under the DCO, outside contributions were licensed
+under the AGPL only, so every merged one narrowed that option. Asking for the right now, before there are many
+contributors, costs less than asking each past contributor later.
+
+**How:** `CLA.md` is an Individual Contributor License Agreement, version 1, structured like the Apache Software
+Foundation's ICLA but in its own words (the ASF doesn't state terms for reusing its text). Contributors keep their
+copyright and grant Espeto LLC a perpetual, irrevocable, non-exclusive copyright license, including the right to
+license their contributions under any terms, proprietary and commercial ones included, and a patent license that ends
+for anyone who sues over the contribution. They confirm the work is theirs to give, with their employer's permission or
+a Corporate CLA where the employer has rights. A plain summary at the top says what signing means.
+
+`.github/workflows/cla.yml` runs a short script in the repository (`.github/scripts/cla.cjs`) on GitHub's own
+`actions/github-script` (v9.0.0, pinned by commit), with no third-party action. On a pull request it lists the author
+and the commit authors; anyone not on the allowlist (the maintainer and the dependency bots) who hasn't signed is named
+in one comment, which later runs edit rather than repeat, and the check fails until they reply with the sign phrase.
+Signatures go in `signatures/version1/cla.json` on the `cla-signatures` branch, matched by GitHub user id, written with
+the workflow's own `GITHUB_TOKEN` through the contents API with the file's sha, so two people signing at once can't
+overwrite each other (the loser gets a 409 and retries). The main ruleset covers only the default branch, so the
+workflow can commit there. The result is a commit status named `CLA` on the pull request's head commit rather than
+the job's outcome, because a sign comment runs on the default branch and a status is what both events can set on the
+same commit. The workflow runs on `pull_request_target` and `issue_comment`, and checks out only `.github/scripts`
+from the default branch, never the pull request's code. Its permissions are contents, pull requests and statuses,
+nothing else. `node --test` runs the script's tests in CI against a fake of the API. A new version of the agreement
+gets a new signatures file (`version2/`), and everyone signs again for later contributions. The website repository
+uses the same agreement and workflow.
+
+**Not chosen:** A copyright assignment: contributors lose rights in their own work, some employers forbid it, and a
+broad license already allows dual licensing. Keeping the DCO alongside: two sign-offs for one purpose; `git commit -s`
+is still welcome. The hosted CLA Assistant service (cla-assistant.io): signatures live in a third party's database, and
+it needs an OAuth app with access to the organization. CLA Assistant Lite (`contributor-assistant/github-action`), the usual
+GitHub Action for this: its repository was archived in March 2026 and runs on Node 20, and any action here holds a
+write token on a workflow that runs for every outside pull request. About 100 lines of our own, on an action GitHub
+maintains, are easier to read in full and to keep current than a third party's bundle. A signing service such as DocuSign or a form: a step outside
+GitHub, and records kept somewhere else. A PAT so signatures can live in a separate repository: one more secret to
+rotate, for no gain while the signatures branch is open.
+
+**Revisit if:** a company wants to contribute (then write the Corporate CLA), Espeto LLC's role changes (a foundation
+or a new company would need the agreements carried over or re-signed), or GitHub offers CLA signing itself.
