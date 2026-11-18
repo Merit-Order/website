@@ -37,3 +37,4 @@ Signing off commits (`git commit -s`) is welcome but not required.
 
 The site is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only), like Merit Order.
 Your contributions are released under it as part of the site, and under the terms of the [CLA](CLA.md).
+
