@@ -69,6 +69,10 @@ Refreshing needs to read the main repo. Once `Merit-Order/meritorder` is public 
 add a read-only token as the `MERITORDER_REPO_TOKEN` secret (a fine-grained token with Contents: read on the main repo);
 without it, main builds use the committed snapshot and say so. Delete the secret once the repo is public.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions need a signed [Contributor License Agreement](CLA.md).
+
 ## License
 
 AGPL-3.0-only, like Merit Order. Geist and Geist Mono are under the SIL Open Font License 1.1.

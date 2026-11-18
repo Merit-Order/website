@@ -1,0 +1,43 @@
+# Asks each contributor to sign the Contributor License Agreement (CLA.md) once, by commenting on their pull request.
+# Signatures are kept on the cla-signatures branch (signatures/version1/cla.json); the main ruleset doesn't cover it.
+#
+# pull_request_target runs this workflow from main with a write token, so it must never check out or run the pull
+# request's code. It only calls the action, which reads the pull request's commit authors and comments through the API.
+name: CLA
+on:
+  pull_request_target:
+    types: [opened, synchronize, closed]
+  issue_comment:
+    types: [created]
+permissions: {}
+
+jobs:
+  CLA:
+    name: CLA
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # commit signatures to the cla-signatures branch
+      pull-requests: write  # comment on the pull request, and lock it after merge so signatures can't be edited
+      actions: write        # rerun the failed check on the pull request once everyone has signed
+    # On comments, run only for the sign phrase or "recheck", and only on pull requests.
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event.issue.pull_request &&
+       (github.event.comment.body == 'recheck' ||
+        github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
+    steps:
+      - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08  # v2.6.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          path-to-document: https://github.com/${{ github.repository }}/blob/main/CLA.md
+          path-to-signatures: signatures/version1/cla.json
+          branch: cla-signatures
+          allowlist: therick,dependabot[bot],renovate[bot],github-actions[bot]
+          custom-notsigned-prcomment: >-
+            Thank you for the pull request. Before it can be merged, we ask that $you sign the
+            [Contributor License Agreement](https://github.com/${{ github.repository }}/blob/main/CLA.md). You keep
+            your copyright; the agreement grants Espeto LLC a license to your contribution, so that Merit Order can
+            be offered under other licenses as well as the AGPL. To sign, post a comment on this pull request with
+            exactly the text below. You only need to do this once.
+          custom-allsigned-prcomment: Everyone who committed to this pull request has signed the CLA.
