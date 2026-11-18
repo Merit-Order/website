@@ -483,7 +483,7 @@ compressor:
 # Where the people using this gateway can get its source: the console's footer and GET /about link to it. Merit Order is
 # under the AGPL-3.0: if you run a changed version for others over a network, point this at your version's source.
 console:
-  source_url: ${MERITORDER_SOURCE_URL:-https://github.com/Merit-Order/meritorder}
+  source_url: ${MERITORDER_SOURCE_URL:-https://github.com/therick/meritorder}
 
 teams:
   default:

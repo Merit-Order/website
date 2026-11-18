@@ -1,6 +1,6 @@
 {
- "generated": "2026-11-18T09:52:57.249Z",
- "commit": "4d4ddf6c74c835966bfd2a88554bd58d345abe68",
+ "generated": "2026-11-18T13:06:16.341Z",
+ "commit": "06b941a805e6b613e8cc6082e843a400f13c5693",
  "source": "scripts/routing_sim.py (src/meritorder/routing_eval.py) in the main repository",
  "commands": {
   "standard": "uv run python scripts/routing_sim.py run --tasks 2000 --mix standard",

@@ -128,7 +128,7 @@ Licensed under the GNU AGPL-3.0-only.
 ### Running it
 
 - Docker Compose and a Helm chart (External Secrets, Reloader, workload identity). Multi-arch images on GHCR with an
-  SBOM and provenance, signed with cosign: `ghcr.io/merit-order/meritorder:0.0.1`, `-gpu` and `-compressor`.
+  SBOM and provenance, signed with cosign: `ghcr.io/therick/meritorder:0.0.1`, `-gpu` and `-compressor`.
 - The configuration lives in Postgres as versions, edited in the console and followed by every process; the YAML file
   is where it starts.
 - **Python 3.14.** The images (`python:3.14-slim`, including SkyPilot's environment in `-gpu` and torch and LLMLingua

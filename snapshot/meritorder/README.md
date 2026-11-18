@@ -111,7 +111,7 @@ Optional profiles: `--profile gpu` (the GPU controller), `--profile compressor` 
 AWS profile, SSO included: `docker compose -f compose.yaml -f compose.aws.yaml up -d`.
 
 Kubernetes: `helm install mo charts/meritorder` (see [docs/07-deployment.md](docs/07-deployment.md)). The
-release workflow publishes signed images to `ghcr.io/merit-order/meritorder` when a version tag is pushed. Until
+release workflow publishes signed images to `ghcr.io/therick/meritorder` when a version tag is pushed. Until
 then, build and push your own image and set `image.repository` and `image.tag`.
 
 ## Point your harness at it

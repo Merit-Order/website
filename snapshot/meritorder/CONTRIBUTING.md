@@ -14,7 +14,7 @@ You need Python 3.12 or newer with [uv](https://docs.astral.sh/uv/), and Node.js
 3.12 too, so code must stay 3.12-compatible (no syntax or standard-library APIs newer than 3.12).
 
 ```bash
-git clone https://github.com/Merit-Order/meritorder && cd meritorder
+git clone https://github.com/therick/meritorder && cd meritorder
 uv sync                      # the gateway and its dev dependencies, from uv.lock
 cd ui && npm ci              # the console's dependencies, from package-lock.json (install scripts are off)
 ```
