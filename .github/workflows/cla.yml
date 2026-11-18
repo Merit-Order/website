@@ -1,43 +1,47 @@
 # Asks each contributor to sign the Contributor License Agreement (CLA.md) once, by commenting on their pull request.
-# Signatures are kept on the cla-signatures branch (signatures/version1/cla.json); the main ruleset doesn't cover it.
+# The logic is in .github/scripts/cla.cjs (tested by cla.test.cjs); this file only decides when it runs and with what.
 #
-# pull_request_target runs this workflow from main with a write token, so it must never check out or run the pull
-# request's code. It only calls the action, which reads the pull request's commit authors and comments through the API.
+# The result is a commit status named "CLA" on the pull request's head commit, not this job's outcome: a sign comment
+# runs on the default branch, and a status is the one thing both events can set on the same commit. The job itself
+# passes unless the script errors. Signatures are kept on the cla-signatures branch (signatures/version1/cla.json),
+# which the main ruleset doesn't cover.
+#
+# pull_request_target and issue_comment run this file from the default branch with a write token, so it must never
+# check out or run the pull request's code. It checks out only .github/scripts from the default branch.
 name: CLA
 on:
   pull_request_target:
-    types: [opened, synchronize, closed]
+    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
 permissions: {}
 
 jobs:
-  CLA:
-    name: CLA
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write       # commit signatures to the cla-signatures branch
-      pull-requests: write  # comment on the pull request, and lock it after merge so signatures can't be edited
-      actions: write        # rerun the failed check on the pull request once everyone has signed
-    # On comments, run only for the sign phrase or "recheck", and only on pull requests.
+  cla:
+    name: CLA signatures
+    # Comments: only on pull requests, and only ones that might be the sign phrase or "recheck" (the script checks
+    # the exact text). Comments the workflow itself posts don't trigger workflows.
     if: >-
       github.event_name == 'pull_request_target' ||
       (github.event.issue.pull_request &&
-       (github.event.comment.body == 'recheck' ||
-        github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA'))
+       (contains(github.event.comment.body, 'recheck') || contains(github.event.comment.body, 'hereby sign the CLA')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # read the script; read and commit the signatures file on the cla-signatures branch
+      pull-requests: write  # read the pull request and its commits; post and edit the check's comment
+      statuses: write       # set the CLA status on the head commit
+    # One run at a time per pull request; signatures from different pull requests are kept safe by the file's sha.
+    concurrency:
+      group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: false
     steps:
-      - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08  # v2.6.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
-          path-to-document: https://github.com/${{ github.repository }}/blob/main/CLA.md
-          path-to-signatures: signatures/version1/cla.json
-          branch: cla-signatures
-          allowlist: therick,dependabot[bot],renovate[bot],github-actions[bot]
-          custom-notsigned-prcomment: >-
-            Thank you for the pull request. Before it can be merged, we ask that $you sign the
-            [Contributor License Agreement](https://github.com/${{ github.repository }}/blob/main/CLA.md). You keep
-            your copyright; the agreement grants Espeto LLC a license to your contribution, so that Merit Order can
-            be offered under other licenses as well as the AGPL. To sign, post a comment on this pull request with
-            exactly the text below. You only need to do this once.
-          custom-allsigned-prcomment: Everyone who committed to this pull request has signed the CLA.
+          ref: ${{ github.event.repository.default_branch }}  # never the pull request's code
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            const {run} = require('./.github/scripts/cla.cjs');
+            await run({github, context});

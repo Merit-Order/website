@@ -70,6 +70,9 @@ jobs:
 
       - run: npm ci
 
+      - name: The CLA check's script (.github/workflows/cla.yml)
+        run: node --test .github/scripts/cla.test.cjs
+
       - name: Refresh the docs and the routing simulator's results from the main repo
         if: steps.src.outputs.repo != ''
         env:
